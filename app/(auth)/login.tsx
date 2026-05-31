@@ -4,7 +4,7 @@ import { AppButton, AppTextInput, Body, BrandHeader, H1, Screen } from '@/compon
 import { useAppState } from '@/lib/appState';
 
 export default function LoginScreen() {
-  const { signIn, profile, result } = useAppState();
+  const { signIn } = useAppState();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,9 +19,7 @@ export default function LoginScreen() {
         return;
       }
 
-      if (!authResult.profileComplete) router.replace('/(onboarding)/profile-setup');
-      else if (!authResult.resultComplete) router.replace('/(onboarding)/questionnaire-intro');
-      else router.replace('/(tabs)/home');
+      router.replace('/(tabs)/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log in. Try again.');
     } finally {

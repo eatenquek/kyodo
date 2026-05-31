@@ -18,7 +18,7 @@ export default function RegisterScreen() {
         setError(authResult.message);
         return;
       }
-      router.replace('/(onboarding)/profile-setup');
+      router.replace('/(tabs)/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create account. Try again.');
     } finally {
