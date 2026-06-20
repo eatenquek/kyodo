@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { AppButton, AppTextInput, Body, BrandHeader, H1, Screen } from '@/components/ui';
 import { useAppState } from '@/lib/appState';
 
@@ -27,24 +28,50 @@ export default function RegisterScreen() {
   }
 
   return (
-    <Screen>
-      <BrandHeader compact />
-      <H1>Create account</H1>
-      <Body secondary>Create an account. Log in will only work after this account exists.</Body>
-      <AppTextInput
-        label="Email"
-        value={email}
-        onChangeText={(value) => {
-          setEmail(value);
-          setError('');
-        }}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        error={error}
-      />
-      <AppTextInput label="Password" value={password} onChangeText={setPassword} secureTextEntry />
-      <AppButton title="Create account" onPress={submit} disabled={!email || password.length < 6} loading={loading} />
-      <AppButton title="Already have an account? Log in" variant="tertiary" onPress={() => router.push('/(auth)/login')} />
+    <Screen contentStyle={styles.content}>
+      <View style={styles.header}>
+        <BrandHeader compact />
+        <H1>Create account</H1>
+        <Body secondary>Start building stronger, more compatible teams.</Body>
+      </View>
+      <View style={styles.form}>
+        <AppTextInput
+          label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChangeText={(value) => {
+            setEmail(value);
+            setError('');
+          }}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          error={error}
+        />
+        <AppTextInput
+          label="Password"
+          placeholder="At least 6 characters"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <AppButton title="Get Started" onPress={submit} disabled={!email || password.length < 6} loading={loading} />
+        <AppButton title="Already have an account? Sign in" variant="tertiary" onPress={() => router.push('/(auth)/login')} />
+      </View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    justifyContent: 'center',
+    paddingHorizontal: 28
+  },
+  header: {
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12
+  },
+  form: {
+    gap: 16
+  }
+});

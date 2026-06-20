@@ -1,16 +1,16 @@
 export const colors = {
-  background: '#FFFFFF',
-  wash: '#D6EEE4',
-  washDeep: '#BFE0D3',
+  background: '#FBFCFA',
+  wash: '#F1F8F4',
+  washDeep: '#DDF2E9',
   surface: '#FFFFFF',
-  surfaceMuted: '#ECF7F2',
-  textPrimary: '#315A52',
-  textSecondary: '#3E7A66',
-  border: '#B8DDCE',
-  accent: '#3E8068',
-  accentDark: '#0D4F36',
-  accentLight: '#79C0A4',
-  accentSoft: '#CFEADD',
+  surfaceMuted: '#F1F8F4',
+  textPrimary: '#171C19',
+  textSecondary: '#5A635E',
+  border: '#E1E9E4',
+  accent: '#15906A',
+  accentDark: '#087453',
+  accentLight: '#86CDB2',
+  accentSoft: '#DDF2E9',
   warning: '#B7791F',
   warningSoft: '#FFF4D8',
   success: '#2F855A',
@@ -30,8 +30,8 @@ export const spacing = {
 
 export const radius = {
   button: 999,
-  input: 999,
-  card: 8,
+  input: 14,
+  card: 14,
   pill: 999
 };
 
