@@ -1,18 +1,18 @@
-import { Body, BrandHeader, Card, H1, H2, Screen } from '@/components/ui';
+import { AppButton, Body, Card, H2, PageHeader, Screen } from '@/components/ui';
 import { useAppState } from '@/lib/appState';
 
 export default function ProfileScreen() {
-  const { user } = useAppState();
+  const { profile, signOut, user } = useAppState();
 
   return (
     <Screen>
-      <BrandHeader compact />
-      <H1>Profile</H1>
+      <PageHeader title="Profile" />
       <Card muted>
+        <H2>{profile?.fullName || 'Your KyodoAI profile'}</H2>
         <Body secondary>{user?.email || 'Local account'}</Body>
-        <H2>Updates coming soon</H2>
-        <Body secondary>Profile tools will be available in a later update.</Body>
+        <Body secondary>Keep your work style and preferred team role in one place.</Body>
       </Card>
+      <AppButton title="Sign out" variant="tertiary" onPress={signOut} />
     </Screen>
   );
 }

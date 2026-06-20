@@ -9,7 +9,14 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accentDark,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border }
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarStyle: {
+          height: 66,
+          paddingTop: 7,
+          paddingBottom: 8,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border
+        }
       }}
     >
       <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color }) => <Ionicons name="home-outline" color={color} size={22} /> }} />
