@@ -1,35 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   TextInputProps,
-  View
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
-export function Screen({ children, scroll = true }: PropsWithChildren<{ scroll?: boolean }>) {
-  const content = <View style={styles.screenInner}>{children}</View>;
+type ScreenProps = PropsWithChildren<{
+  scroll?: boolean;
+  contentStyle?: StyleProp<ViewStyle>;
+}>;
+
+export function Screen({ children, scroll = true, contentStyle }: ScreenProps) {
+  const content = <View style={[styles.screenInner, contentStyle]}>{children}</View>;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View pointerEvents="none" style={styles.background}>
-        <View style={styles.paperTop} />
-        <View style={styles.tornEdge}>
-          {Array.from({ length: 9 }).map((_, index) => (
-            <View key={index} style={[styles.tornDot, { left: `${index * 12 - 2}%`, top: index % 2 ? -6 : -1 }]} />
-          ))}
-        </View>
-        <View style={styles.mintWash}>
-          <View style={styles.washStrokeOne} />
-          <View style={styles.washStrokeTwo} />
-        </View>
-      </View>
-      {scroll ? <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView> : content}
+      <View pointerEvents="none" style={styles.backgroundGlow} />
+      {scroll ? (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {content}
+        </ScrollView>
+      ) : content}
     </SafeAreaView>
   );
 }
@@ -49,6 +50,7 @@ export function AppButton({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
@@ -68,7 +70,11 @@ export function AppTextInput({ label, error, ...props }: TextInputProps & { labe
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={colors.textSecondary} style={[styles.input, Boolean(error) && styles.inputError]} {...props} />
+      <TextInput
+        placeholderTextColor="#9AA39E"
+        style={[styles.input, Boolean(error) && styles.inputError]}
+        {...props}
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -88,6 +94,15 @@ export function H2({ children }: PropsWithChildren) {
 
 export function Body({ children, secondary }: PropsWithChildren<{ secondary?: boolean }>) {
   return <Text style={[styles.body, secondary && styles.secondaryText]}>{children}</Text>;
+}
+
+export function PageHeader({ title, action }: { title: string; action?: ReactNode }) {
+  return (
+    <View style={styles.pageHeader}>
+      <Text style={styles.pageHeaderTitle}>{title}</Text>
+      {action ?? <KyodoLogoMark size={34} />}
+    </View>
+  );
 }
 
 export function ProgressBar({ value, max }: { value: number; max: number }) {
@@ -114,7 +129,9 @@ export function DimensionBar({ label, score, description }: { label: string; sco
 export function EmptyState({ title, body, actionLabel, onAction }: { title: string; body: string; actionLabel?: string; onAction?: () => void }) {
   return (
     <Card muted>
-      <Ionicons name="sparkles-outline" size={24} color={colors.info} />
+      <View style={styles.emptyIcon}>
+        <Ionicons name="sparkles-outline" size={23} color={colors.accentDark} />
+      </View>
       <H2>{title}</H2>
       <Body secondary>{body}</Body>
       {actionLabel ? <AppButton title={actionLabel} onPress={onAction} variant="secondary" /> : null}
@@ -125,103 +142,150 @@ export function EmptyState({ title, body, actionLabel, onAction }: { title: stri
 export function BrandHeader({ compact }: { compact?: boolean }) {
   return (
     <View style={[styles.brandHeader, compact && styles.brandHeaderCompact]}>
-      <View style={styles.brandDots}>
-        <View style={styles.brandDotCluster}>
-          <View style={styles.brandDot} />
-          <View style={styles.brandDot} />
-          <View style={styles.brandDot} />
-        </View>
-        <View style={styles.brandDotCluster}>
-          <View style={styles.brandDot} />
-          <View style={styles.brandDot} />
-          <View style={styles.brandDot} />
-        </View>
-      </View>
-      <View style={styles.logoRow}>
-        <MoleculeMark />
-        <Text style={styles.brandText}>
-          Kyodo<Text style={styles.brandTextAccent}>AI</Text>
-        </Text>
-      </View>
-      <Text style={styles.brandSubhead}>Ethan and{'\n'}Malvika Inc.</Text>
+      <KyodoLogoMark size={compact ? 56 : 94} />
+      <Text style={[styles.brandText, compact && styles.brandTextCompact]}>
+        Kyodo<Text style={styles.brandTextAccent}>AI</Text>
+      </Text>
+      {!compact ? <Text style={styles.brandTagline}>Better team awareness,{`\n`}Stronger together.</Text> : null}
     </View>
   );
 }
 
-function MoleculeMark() {
+export function KyodoLogoMark({ size = 58 }: { size?: number }) {
+  const scale = size / 72;
+
   return (
-    <View style={styles.mark}>
-      <View style={[styles.markLine, styles.markLineA]} />
-      <View style={[styles.markLine, styles.markLineB]} />
-      <View style={[styles.markLine, styles.markLineC]} />
-      <View style={[styles.markLine, styles.markLineD]} />
-      <View style={[styles.markNode, styles.markNodeA]} />
-      <View style={[styles.markNode, styles.markNodeB]} />
-      <View style={[styles.markNode, styles.markNodeC]} />
-      <View style={[styles.markNode, styles.markNodeD]} />
-      <View style={[styles.markNode, styles.markNodeE]} />
+    <View accessibilityLabel="KyodoAI logo" style={{ width: size, height: size }}>
+      <View
+        style={[
+          styles.markCanvas,
+          {
+            left: (size - 72) / 2,
+            top: (size - 72) / 2,
+            transform: [{ scale }]
+          }
+        ]}
+      >
+        <View style={[styles.markLine, styles.markLineA]} />
+        <View style={[styles.markLine, styles.markLineB]} />
+        <View style={[styles.markLine, styles.markLineC]} />
+        <View style={[styles.markLine, styles.markLineD]} />
+        <View style={[styles.markLine, styles.markLineE]} />
+        <View style={[styles.markLine, styles.markLineF]} />
+        <View style={[styles.markNode, styles.markNodeA]} />
+        <View style={[styles.markNode, styles.markNodeB]} />
+        <View style={[styles.markNode, styles.markNodeC]} />
+        <View style={[styles.markNode, styles.markNodeD]} />
+        <View style={[styles.markNode, styles.markNodeE]} />
+        <View style={[styles.markNode, styles.markNodeF]} />
+        <View style={[styles.markNode, styles.markNodeG]} />
+        <View style={[styles.markNode, styles.markNodeH]} />
+      </View>
     </View>
   );
 }
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  background: { ...StyleSheet.absoluteFillObject },
-  paperTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 178, backgroundColor: colors.surface },
-  tornEdge: { position: 'absolute', top: 166, left: 0, right: 0, height: 26, overflow: 'hidden' },
-  tornDot: {
-    position: 'absolute',
-    width: 72,
-    height: 32,
-    borderRadius: 40,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(49, 90, 82, 0.12)'
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background
   },
-  mintWash: { position: 'absolute', top: 178, left: 0, right: 0, bottom: 0, backgroundColor: colors.wash },
-  washStrokeOne: {
+  backgroundGlow: {
     position: 'absolute',
-    top: 70,
-    left: -70,
-    width: 460,
-    height: 90,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    transform: [{ rotate: '-18deg' }]
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    top: -110,
+    right: -115,
+    backgroundColor: '#F0F8F3'
   },
-  washStrokeTwo: {
-    position: 'absolute',
-    bottom: 120,
-    right: -120,
-    width: 480,
-    height: 120,
-    borderRadius: 999,
-    backgroundColor: 'rgba(62, 128, 104, 0.10)',
-    transform: [{ rotate: '24deg' }]
+  scrollContent: {
+    flexGrow: 1
   },
-  scrollContent: { flexGrow: 1 },
-  screenInner: { flex: 1, paddingHorizontal: 30, paddingTop: 26, paddingBottom: 28, gap: spacing.lg },
-  h1: { color: colors.textPrimary, fontSize: typography.h1, fontWeight: '800', lineHeight: 36, textAlign: 'center' },
-  h2: { color: colors.textPrimary, fontSize: typography.h2, fontWeight: '800', lineHeight: 28 },
-  body: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 24 },
-  secondaryText: { color: colors.textSecondary },
-  caption: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  label: { color: colors.textPrimary, fontSize: typography.label, fontWeight: '800' },
-  field: { gap: spacing.sm },
-  input: {
+  screenInner: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 32,
+    gap: spacing.lg
+  },
+  pageHeader: {
     minHeight: 44,
-    borderRadius: radius.input,
-    borderWidth: 0,
-    backgroundColor: colors.accentLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10
+  },
+  pageHeaderTitle: {
     color: colors.textPrimary,
-    paddingHorizontal: spacing.xl,
-    fontSize: typography.body,
-    textAlign: 'center'
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.6
   },
-  inputError: { borderWidth: 2, borderColor: colors.error },
-  error: { color: colors.error, fontSize: typography.caption },
+  h1: {
+    color: colors.textPrimary,
+    fontSize: typography.h1,
+    fontWeight: '800',
+    lineHeight: 38,
+    textAlign: 'center',
+    letterSpacing: -0.8
+  },
+  h2: {
+    color: colors.textPrimary,
+    fontSize: 19,
+    fontWeight: '800',
+    lineHeight: 25
+  },
+  body: {
+    color: colors.textPrimary,
+    fontSize: typography.body,
+    lineHeight: 24
+  },
+  secondaryText: {
+    color: colors.textSecondary
+  },
+  caption: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+    lineHeight: 18
+  },
+  label: {
+    color: colors.textPrimary,
+    fontSize: typography.label,
+    fontWeight: '700',
+    marginLeft: 2
+  },
+  field: {
+    gap: 7
+  },
+  input: {
+    minHeight: 52,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
+    paddingHorizontal: 16,
+    fontSize: typography.body,
+    shadowColor: '#193C30',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.035,
+    shadowRadius: 8,
+    elevation: 1
+  },
+  inputError: {
+    borderColor: colors.error
+  },
+  error: {
+    color: colors.error,
+    fontSize: typography.caption,
+    marginLeft: 2
+  },
   button: {
-    minHeight: 44,
+    minHeight: 52,
     borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,54 +293,158 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.xl
   },
-  primaryButton: { backgroundColor: colors.accentDark },
-  secondaryButton: { backgroundColor: colors.accentLight, borderWidth: 0 },
-  tertiaryButton: { backgroundColor: 'transparent' },
-  buttonText: { fontSize: typography.body, fontWeight: '900' },
-  primaryButtonText: { color: colors.surface },
-  secondaryButtonText: { color: colors.accentDark },
-  tertiaryButtonText: { color: colors.accentDark },
-  disabled: { opacity: 0.55 },
-  pressed: { transform: [{ scale: 0.98 }] },
+  primaryButton: {
+    backgroundColor: colors.accent,
+    shadowColor: colors.accentDark,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 3
+  },
+  secondaryButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.accent
+  },
+  tertiaryButton: {
+    minHeight: 42,
+    backgroundColor: 'transparent'
+  },
+  buttonText: {
+    fontSize: typography.body,
+    fontWeight: '800'
+  },
+  primaryButtonText: {
+    color: colors.surface
+  },
+  secondaryButtonText: {
+    color: colors.accentDark
+  },
+  tertiaryButtonText: {
+    color: colors.accentDark
+  },
+  disabled: {
+    opacity: 0.48
+  },
+  pressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.985 }]
+  },
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    backgroundColor: colors.surface,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.88)',
-    padding: spacing.lg,
+    borderColor: '#EEF2EF',
+    padding: 18,
     gap: spacing.md,
-    shadowColor: colors.accentDark,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowColor: '#193C30',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
     elevation: 2
   },
-  mutedCard: { backgroundColor: 'rgba(255, 255, 255, 0.62)' },
-  progressTrack: { height: 8, borderRadius: radius.pill, backgroundColor: 'rgba(255, 255, 255, 0.72)', overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.accentDark },
-  dimension: { gap: spacing.sm },
-  dimensionLabel: { color: colors.textPrimary, fontSize: typography.small, fontWeight: '700' },
-  scoreText: { color: colors.accentDark, fontSize: typography.small, fontWeight: '800' },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  brandHeader: { alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
-  brandHeaderCompact: { marginBottom: spacing.sm, transform: [{ scale: 0.9 }] },
-  brandDots: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },
-  brandDotCluster: { flexDirection: 'row', gap: 5 },
-  brandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
-  logoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  brandText: { color: colors.textPrimary, fontSize: typography.display, fontWeight: '900', letterSpacing: 0 },
-  brandTextAccent: { color: colors.accentLight },
-  brandSubhead: { color: colors.accent, fontSize: typography.small, fontWeight: '900', lineHeight: 15, textAlign: 'center' },
-  mark: { width: 58, height: 58 },
-  markLine: { position: 'absolute', height: 5, borderRadius: 3, backgroundColor: colors.accentLight },
-  markLineA: { top: 14, left: 12, width: 34, transform: [{ rotate: '30deg' }] },
-  markLineB: { top: 28, left: 8, width: 42, transform: [{ rotate: '-28deg' }] },
-  markLineC: { top: 24, left: 26, width: 30, transform: [{ rotate: '62deg' }] },
-  markLineD: { top: 36, left: 14, width: 28, transform: [{ rotate: '22deg' }] },
-  markNode: { position: 'absolute', width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accentDark },
-  markNodeA: { top: 10, left: 11 },
-  markNodeB: { top: 8, left: 36, backgroundColor: colors.accentLight },
-  markNodeC: { top: 26, left: 3 },
-  markNodeD: { top: 28, left: 43 },
-  markNodeE: { top: 42, left: 24, backgroundColor: colors.accentLight }
+  mutedCard: {
+    backgroundColor: colors.surface
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentSoft,
+    overflow: 'hidden'
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent
+  },
+  dimension: {
+    gap: spacing.sm
+  },
+  dimensionLabel: {
+    color: colors.textPrimary,
+    fontSize: typography.small,
+    fontWeight: '700'
+  },
+  scoreText: {
+    color: colors.accentDark,
+    fontSize: typography.small,
+    fontWeight: '800'
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md
+  },
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft
+  },
+  brandHeader: {
+    alignItems: 'center',
+    gap: 10
+  },
+  brandHeaderCompact: {
+    gap: 5,
+    marginBottom: 4
+  },
+  brandText: {
+    color: colors.textPrimary,
+    fontSize: 39,
+    lineHeight: 46,
+    fontWeight: '900',
+    letterSpacing: -1.5
+  },
+  brandTextCompact: {
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -1
+  },
+  brandTextAccent: {
+    color: colors.accent
+  },
+  brandTagline: {
+    color: '#313834',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 23,
+    textAlign: 'center',
+    marginTop: 8
+  },
+  markCanvas: {
+    position: 'absolute',
+    width: 72,
+    height: 72
+  },
+  markLine: {
+    position: 'absolute',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#54B58E'
+  },
+  markLineA: { top: 16, left: 20, width: 31, transform: [{ rotate: '25deg' }] },
+  markLineB: { top: 31, left: 9, width: 44, transform: [{ rotate: '-27deg' }] },
+  markLineC: { top: 47, left: 14, width: 44, transform: [{ rotate: '30deg' }] },
+  markLineD: { top: 34, left: 38, width: 34, transform: [{ rotate: '65deg' }] },
+  markLineE: { top: 14, left: 38, width: 28, transform: [{ rotate: '-28deg' }] },
+  markLineF: { top: 50, left: 27, width: 27, transform: [{ rotate: '-64deg' }] },
+  markNode: {
+    position: 'absolute',
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: '#092F2D'
+  },
+  markNodeA: { top: 6, left: 17, width: 13, height: 13, borderRadius: 7, backgroundColor: '#79C8A8' },
+  markNodeB: { top: 3, left: 40, backgroundColor: '#4DB188' },
+  markNodeC: { top: 19, left: 3 },
+  markNodeD: { top: 16, left: 54 },
+  markNodeE: { top: 32, left: 22 },
+  markNodeF: { top: 29, left: 48, width: 20, height: 20, borderRadius: 10 },
+  markNodeG: { top: 54, left: 13, backgroundColor: '#4DB188' },
+  markNodeH: { top: 53, left: 40, width: 14, height: 14, borderRadius: 7, backgroundColor: '#4DB188' }
 });
