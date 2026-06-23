@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
+import { TeamDetails } from '@/components/teams/TeamDetails';
 import { TeamFormModal, TeamFormMode } from '@/components/teams/TeamFormModal';
 import { useAppState } from '@/lib/appState';
 import { Team } from '@/types/domain';
@@ -19,10 +20,50 @@ const palette = {
 };
 
 export default function TeamsScreen() {
-  const { getActiveTeam, getUserTeams, selectTeam } = useAppState();
+  const {
+    compatibility,
+    generateCompatibility,
+    getActiveTeam,
+    getUserTeams,
+    leaveTeam,
+    selectTeam
+  } = useAppState();
   const teams = getUserTeams();
   const activeTeam = getActiveTeam();
+  const activeCompatibility = activeTeam ? compatibility[activeTeam.id] : undefined;
+  const canGenerateCompatibility = Boolean(
+    activeTeam && activeTeam.members.filter((member) => member.result).length >= 2
+  );
   const [formMode, setFormMode] = useState<TeamFormMode>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
+  function confirmLeaveTeam() {
+    if (!activeTeam) return;
+
+    Alert.alert(
+      'Leave this team?',
+      `You will need the ${activeTeam.joinCode} code to join ${activeTeam.name} again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave team',
+          style: 'destructive',
+          onPress: () => {
+            void leaveTeam(activeTeam.id);
+          }
+        }
+      ]
+    );
+  }
+
+  async function createInsights() {
+    try {
+      setInsightsLoading(true);
+      await generateCompatibility();
+    } finally {
+      setInsightsLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -76,6 +117,16 @@ export default function TeamsScreen() {
                 />
               ))}
             </View>
+            {activeTeam ? (
+              <TeamDetails
+                team={activeTeam}
+                compatibility={activeCompatibility}
+                canGenerateCompatibility={canGenerateCompatibility}
+                insightsLoading={insightsLoading}
+                onGenerateInsights={() => void createInsights()}
+                onLeave={confirmLeaveTeam}
+              />
+            ) : null}
           </>
         ) : (
           <View style={styles.emptyCard}>
