@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
+import { LeaveTeamModal } from '@/components/teams/LeaveTeamModal';
 import { TeamDetails } from '@/components/teams/TeamDetails';
 import { TeamFormModal, TeamFormMode } from '@/components/teams/TeamFormModal';
 import { useAppState } from '@/lib/appState';
@@ -36,24 +37,33 @@ export default function TeamsScreen() {
   );
   const [formMode, setFormMode] = useState<TeamFormMode>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
+  const [teamToLeave, setTeamToLeave] = useState<Team | null>(null);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
 
   function confirmLeaveTeam() {
     if (!activeTeam) return;
+    setLeaveError('');
+    setTeamToLeave(activeTeam);
+  }
 
-    Alert.alert(
-      'Leave this team?',
-      `You will need the ${activeTeam.joinCode} code to join ${activeTeam.name} again.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave team',
-          style: 'destructive',
-          onPress: () => {
-            void leaveTeam(activeTeam.id);
-          }
-        }
-      ]
-    );
+  async function submitLeaveTeam() {
+    if (!teamToLeave) return;
+
+    try {
+      setLeaveLoading(true);
+      setLeaveError('');
+      const left = await leaveTeam(teamToLeave.id);
+      if (!left) {
+        setLeaveError('You are no longer a member of this team.');
+        return;
+      }
+      setTeamToLeave(null);
+    } catch (err) {
+      setLeaveError(err instanceof Error ? err.message : 'Could not leave this team.');
+    } finally {
+      setLeaveLoading(false);
+    }
   }
 
   async function createInsights() {
@@ -139,6 +149,15 @@ export default function TeamsScreen() {
         )}
       </ScrollView>
       <TeamFormModal mode={formMode} onClose={() => setFormMode(null)} />
+      <LeaveTeamModal
+        team={teamToLeave}
+        loading={leaveLoading}
+        error={leaveError}
+        onClose={() => {
+          if (!leaveLoading) setTeamToLeave(null);
+        }}
+        onConfirm={() => void submitLeaveTeam()}
+      />
     </SafeAreaView>
   );
 }
