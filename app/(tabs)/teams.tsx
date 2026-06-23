@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppButton } from '@/components/ui';
+import { TeamFormModal, TeamFormMode } from '@/components/teams/TeamFormModal';
 import { useAppState } from '@/lib/appState';
 import { Team } from '@/types/domain';
 
@@ -19,6 +22,7 @@ export default function TeamsScreen() {
   const { getActiveTeam, getUserTeams, selectTeam } = useAppState();
   const teams = getUserTeams();
   const activeTeam = getActiveTeam();
+  const [formMode, setFormMode] = useState<TeamFormMode>(null);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -26,8 +30,22 @@ export default function TeamsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
           <Text style={styles.pageTitle}>Teams</Text>
-          <View style={styles.headerMark}>
-            <Ionicons name="people" size={22} color={palette.accentDark} />
+          <Pressable
+            accessibilityLabel="Create a team"
+            hitSlop={10}
+            onPress={() => setFormMode('create')}
+            style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
+          >
+            <Ionicons name="add" size={26} color="#FFFFFF" />
+          </Pressable>
+        </View>
+
+        <View style={styles.quickActions}>
+          <View style={styles.actionSlot}>
+            <AppButton title="Create team" onPress={() => setFormMode('create')} />
+          </View>
+          <View style={styles.actionSlot}>
+            <AppButton title="Join with code" variant="secondary" onPress={() => setFormMode('join')} />
           </View>
         </View>
 
@@ -65,10 +83,11 @@ export default function TeamsScreen() {
               <Ionicons name="people-outline" size={31} color={palette.accentDark} />
             </View>
             <Text style={styles.emptyTitle}>No teams yet</Text>
-            <Text style={styles.emptyBody}>Teams you create or join will appear here.</Text>
+            <Text style={styles.emptyBody}>Create a team for your next project, or join with a code from your peers.</Text>
           </View>
         )}
       </ScrollView>
+      <TeamFormModal mode={formMode} onClose={() => setFormMode(null)} />
     </SafeAreaView>
   );
 }
@@ -136,13 +155,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.6
   },
-  headerMark: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  headerAction: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.accentSoft
+    backgroundColor: palette.accent
   },
   introCard: {
     minHeight: 118,
@@ -182,6 +201,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.7)'
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  actionSlot: {
+    flex: 1
   },
   sectionHeader: {
     flexDirection: 'row',
