@@ -232,6 +232,11 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
 
 export async function saveBackendProfile(userId: string, profile: Omit<Profile, 'id' | 'onboardingCompleted'>) {
   const client = requireClient();
+  const { data: sessionData } = await client.auth.getSession();
+  if (!sessionData.session || sessionData.session.user.id !== userId) {
+    throw new Error('Confirm your email and sign in before saving your profile.');
+  }
+
   const { error } = await client.from('profiles').upsert({
     id: userId,
     full_name: profile.fullName,

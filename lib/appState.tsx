@@ -20,7 +20,9 @@ import { Answer, CompatibilityResult, PersonalityResult, Profile, Team } from '@
 import { generateJoinCode } from '@/utils/generateJoinCode';
 
 type AppUser = { id: string; email: string };
-type AuthResult = { ok: true; profileComplete?: boolean; resultComplete?: boolean } | { ok: false; message: string };
+type AuthResult =
+  | { ok: true; profileComplete?: boolean; resultComplete?: boolean; requiresEmailConfirmation?: boolean }
+  | { ok: false; message: string };
 
 type State = {
   user: AppUser | null;
@@ -194,6 +196,16 @@ export function AppProvider({ children }: PropsWithChildren) {
           if (error || !data.user?.email) {
             return { ok: false, message: error?.message ?? 'Could not create account.' };
           }
+
+          if (!data.user.identities?.length) {
+            return { ok: false, message: 'An account already exists for this email. Sign in instead.' };
+          }
+
+          if (!data.session) {
+            setState((current) => ({ ...current, user: null }));
+            return { ok: true, requiresEmailConfirmation: true };
+          }
+
           const signedUpUser = data.user;
           setState((current) => ({
             ...current,
