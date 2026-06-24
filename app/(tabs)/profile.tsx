@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton, DimensionBar, PageHeader, Screen } from '@/components/ui';
 import { ProfileFormModal } from '@/components/profile/ProfileFormModal';
-import { dimensionLabels } from '@/constants/questions';
+import { dimensionLabels, questions } from '@/constants/questions';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 import { Dimension } from '@/types/domain';
@@ -11,10 +12,15 @@ import { Dimension } from '@/types/domain';
 const resultDimensions: Dimension[] = ['planning', 'communication', 'leadership'];
 
 export default function ProfileScreen() {
-  const { profile, result, signOut, user } = useAppState();
+  const { answers, profile, result, signOut, user } = useAppState();
   const [editing, setEditing] = useState(false);
   const displayName = profile?.fullName || user?.email?.split('@')[0] || 'KyodoAI member';
   const initial = displayName.slice(0, 1).toUpperCase();
+  const answeredCount = questions.filter((question) => Boolean(answers[question.id])).length;
+  const questionnaireAction = answeredCount
+    ? `Resume questionnaire (${answeredCount}/${questions.length})`
+    : 'Start questionnaire';
+  const openQuestionnaire = () => router.push('/questionnaire');
 
   return (
     <>
@@ -111,16 +117,22 @@ export default function ProfileScreen() {
                 />
               ))}
             </View>
+            <View style={styles.retakeAction}>
+              <AppButton title="Retake questionnaire" variant="secondary" onPress={openQuestionnaire} />
+            </View>
           </View>
         ) : (
           <View style={styles.emptyResultCard}>
-            <View style={styles.emptyResultIcon}>
-              <Ionicons name="analytics-outline" size={28} color={colors.accentDark} />
+            <View style={styles.emptyResultRow}>
+              <View style={styles.emptyResultIcon}>
+                <Ionicons name="analytics-outline" size={28} color={colors.accentDark} />
+              </View>
+              <View style={styles.emptyResultCopy}>
+                <Text style={styles.emptyResultTitle}>No work-style result yet</Text>
+                <Text style={styles.emptyResultBody}>Complete the questionnaire to discover your strongest work-style dimensions.</Text>
+              </View>
             </View>
-            <View style={styles.emptyResultCopy}>
-              <Text style={styles.emptyResultTitle}>No work-style result yet</Text>
-              <Text style={styles.emptyResultBody}>Your questionnaire result and strongest dimensions will appear here.</Text>
-            </View>
+            <AppButton title={questionnaireAction} variant="secondary" onPress={openQuestionnaire} />
           </View>
         )}
 
@@ -243,15 +255,16 @@ const styles = StyleSheet.create({
   resultTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', marginTop: 3 },
   resultSummary: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 14 },
   dimensionList: { gap: 15, marginTop: 18 },
+  retakeAction: { marginTop: 14 },
   emptyResultCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 15,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 17
+    padding: 17,
+    gap: 15
   },
+  emptyResultRow: { flexDirection: 'row', alignItems: 'center' },
   emptyResultIcon: {
     width: 52,
     height: 52,
