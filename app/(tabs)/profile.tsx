@@ -4,16 +4,35 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton, DimensionBar, PageHeader, Screen } from '@/components/ui';
 import { ProfileFormModal } from '@/components/profile/ProfileFormModal';
-import { dimensionLabels, questions } from '@/constants/questions';
+import { dimensionDescriptions, dimensionLabels, questions } from '@/constants/questions';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
-import { Dimension } from '@/types/domain';
+import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
+import { Dimension, WorkstyleScores } from '@/types/domain';
 
-const resultDimensions: Dimension[] = ['planning', 'communication', 'leadership'];
+const coreDimensions = Object.keys(dimensionLabels) as Dimension[];
+const scoreDetails: Array<{ key: keyof WorkstyleScores; label: string; description: string }> = [
+  ...coreDimensions.map((dimension) => ({
+    key: dimension,
+    label: dimensionLabels[dimension],
+    description: dimensionDescriptions[dimension]
+  })),
+  {
+    key: 'accountability',
+    label: 'Accountability',
+    description: 'How strongly you signal dependable follow-through on commitments.'
+  },
+  {
+    key: 'decisionComfort',
+    label: 'Decision Comfort',
+    description: 'How comfortable you are helping the team move when a decision is needed.'
+  }
+];
 
 export default function ProfileScreen() {
   const { answers, profile, result, signOut, user } = useAppState();
   const [editing, setEditing] = useState(false);
+  const [scoreDetailsVisible, setScoreDetailsVisible] = useState(false);
   const displayName = profile?.fullName || user?.email?.split('@')[0] || 'KyodoAI member';
   const initial = displayName.slice(0, 1).toUpperCase();
   const answeredCount = questions.filter((question) => Boolean(answers[question.id])).length;
@@ -21,6 +40,7 @@ export default function ProfileScreen() {
     ? `Resume questionnaire (${answeredCount}/${questions.length})`
     : 'Start questionnaire';
   const openQuestionnaire = () => router.push('/questionnaire');
+  const workstyle = result ? buildWorkstyleProfile(result) : null;
 
   return (
     <>
@@ -96,31 +116,87 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Work-style profile</Text>
         </View>
 
-        {result ? (
-          <View style={styles.resultCard}>
-            <View style={styles.resultHeader}>
-              <View style={styles.resultIcon}>
-                <Ionicons name="sparkles" size={21} color={colors.accentDark} />
+        {result && workstyle ? (
+          <>
+            <View style={styles.resultCard}>
+              <View style={styles.resultHeader}>
+                <View style={styles.resultIcon}>
+                  <Ionicons name="sparkles" size={21} color={colors.accentDark} />
+                </View>
+                <View style={styles.resultCopy}>
+                  <Text style={styles.resultEyebrow}>YOUR CURRENT WORK-STYLE SNAPSHOT</Text>
+                  <Text style={styles.tendencyLabel}>Primary tendency</Text>
+                  <Text style={styles.resultTitle}>{workstyle.primary.label}</Text>
+                </View>
               </View>
-              <View style={styles.resultCopy}>
-                <Text style={styles.resultEyebrow}>YOUR WORK STYLE</Text>
-                <Text style={styles.resultTitle}>{result.resultLabel}</Text>
+              <Text style={styles.resultSummary}>{workstyle.primary.description}</Text>
+
+              <View style={styles.secondaryTendency}>
+                <Text style={styles.secondaryEyebrow}>SECONDARY TENDENCY</Text>
+                <Text style={styles.secondaryTitle}>{workstyle.secondary.label}</Text>
+                <Text style={styles.secondaryBody}>{workstyle.secondary.description}</Text>
               </View>
+
+              <Text style={styles.resultDisclaimer}>
+                These are flexible tendencies based on your answers—not fixed personality labels or predictions.
+              </Text>
             </View>
-            <Text style={styles.resultSummary}>{result.summaryText}</Text>
-            <View style={styles.dimensionList}>
-              {resultDimensions.map((dimension) => (
-                <DimensionBar
-                  key={dimension}
-                  label={dimensionLabels[dimension]}
-                  score={result[dimension]}
+
+            <InsightListCard
+              icon="checkmark-circle-outline"
+              title="Possible strengths in a team"
+              items={workstyle.strengths}
+            />
+            <InsightListCard
+              icon="eye-outline"
+              title="Potential watch-outs"
+              items={workstyle.watchOuts}
+            />
+            <InsightListCard
+              icon="people-outline"
+              title="What teammates should know"
+              items={workstyle.teammateNotes}
+            />
+
+            <View style={styles.scoreCard}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: scoreDetailsVisible }}
+                onPress={() => setScoreDetailsVisible((visible) => !visible)}
+                style={({ pressed }) => [styles.scoreToggle, pressed && styles.pressed]}
+              >
+                <View style={styles.scoreToggleIcon}>
+                  <Ionicons name="analytics-outline" size={20} color={colors.accentDark} />
+                </View>
+                <View style={styles.scoreToggleCopy}>
+                  <Text style={styles.scoreToggleTitle}>Score details</Text>
+                  <Text style={styles.scoreToggleBody}>See how your ten work-style signals compare.</Text>
+                </View>
+                <Ionicons
+                  name={scoreDetailsVisible ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={colors.textSecondary}
                 />
-              ))}
+              </Pressable>
+
+              {scoreDetailsVisible ? (
+                <View style={styles.dimensionList}>
+                  {scoreDetails.map((detail) => (
+                    <DimensionBar
+                      key={detail.key}
+                      label={detail.label}
+                      description={detail.description}
+                      score={result[detail.key]}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </View>
+
             <View style={styles.retakeAction}>
               <AppButton title="Retake questionnaire" variant="secondary" onPress={openQuestionnaire} />
             </View>
-          </View>
+          </>
         ) : (
           <View style={styles.emptyResultCard}>
             <View style={styles.emptyResultRow}>
@@ -153,6 +229,35 @@ function InfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap;
       <View style={styles.infoCopy}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text numberOfLines={2} style={styles.infoValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function InsightListCard({
+  icon,
+  title,
+  items
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  items: string[];
+}) {
+  return (
+    <View style={styles.insightCard}>
+      <View style={styles.insightHeader}>
+        <View style={styles.insightIcon}>
+          <Ionicons name={icon} size={20} color={colors.accentDark} />
+        </View>
+        <Text style={styles.insightTitle}>{title}</Text>
+      </View>
+      <View style={styles.insightList}>
+        {items.map((item) => (
+          <View key={item} style={styles.bulletRow}>
+            <View style={styles.bulletDot} />
+            <Text style={styles.bulletText}>{item}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -252,10 +357,63 @@ const styles = StyleSheet.create({
   },
   resultCopy: { flex: 1 },
   resultEyebrow: { color: colors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-  resultTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', marginTop: 3 },
+  tendencyLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '700', marginTop: 5 },
+  resultTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '900', marginTop: 2 },
   resultSummary: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 14 },
-  dimensionList: { gap: 15, marginTop: 18 },
-  retakeAction: { marginTop: 14 },
+  secondaryTendency: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 13,
+    padding: 14,
+    marginTop: 16
+  },
+  secondaryEyebrow: { color: colors.accentDark, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  secondaryTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '900', marginTop: 4 },
+  secondaryBody: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  resultDisclaimer: { color: colors.textSecondary, fontSize: 10, lineHeight: 16, fontStyle: 'italic', marginTop: 14 },
+  insightCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 17
+  },
+  insightHeader: { flexDirection: 'row', alignItems: 'center' },
+  insightIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft,
+    marginRight: 11
+  },
+  insightTitle: { flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  insightList: { gap: 11, marginTop: 15 },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  bulletDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent, marginTop: 6, marginRight: 10 },
+  bulletText: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  scoreCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 17
+  },
+  scoreToggle: { flexDirection: 'row', alignItems: 'center' },
+  scoreToggleIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentSoft,
+    marginRight: 11
+  },
+  scoreToggleCopy: { flex: 1, paddingRight: 8 },
+  scoreToggleTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  scoreToggleBody: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  dimensionList: { gap: 17, marginTop: 20, paddingTop: 18, borderTopWidth: 1, borderTopColor: colors.border },
+  retakeAction: { marginTop: 10 },
   emptyResultCard: {
     backgroundColor: colors.surface,
     borderRadius: 15,

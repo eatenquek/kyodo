@@ -7,7 +7,8 @@ export const dimensionLabels: Record<Dimension, string> = {
   pace: 'Work Pace',
   conflict: 'Conflict Style',
   detail: 'Detail Orientation',
-  collaboration: 'Collaboration Preference'
+  initiative: 'Initiative',
+  flexibility: 'Flexibility'
 };
 
 export const dimensionDescriptions: Record<Dimension, string> = {
@@ -17,31 +18,28 @@ export const dimensionDescriptions: Record<Dimension, string> = {
   pace: 'How quickly you prefer to move from idea to action.',
   conflict: 'How you tend to handle disagreement.',
   detail: 'How much attention you give to details and polish.',
-  collaboration: 'How much shared working time you prefer.'
+  initiative: 'How readily you start tasks and unblock work.',
+  flexibility: 'How comfortably you adapt when plans change.'
 };
 
+export const questionnaireVersion = 'kyodo-15-v1';
+
 export const questions: Question[] = [
-  { id: 'planning_01', dimension: 'planning', prompt: 'I prefer setting milestones before starting project work.', reverse: false },
-  { id: 'planning_02', dimension: 'planning', prompt: 'I feel more comfortable when the team has a clear task list.', reverse: false },
-  { id: 'planning_03', dimension: 'planning', prompt: 'I am fine starting with a rough idea and figuring things out later.', reverse: true },
-  { id: 'communication_01', dimension: 'communication', prompt: 'I like teammates to give regular progress updates.', reverse: false },
-  { id: 'communication_02', dimension: 'communication', prompt: 'I usually ask questions early if something is unclear.', reverse: false },
-  { id: 'communication_03', dimension: 'communication', prompt: 'I prefer fewer messages as long as everyone knows their task.', reverse: true },
-  { id: 'leadership_01', dimension: 'leadership', prompt: 'I naturally step in to organize the team when things feel unclear.', reverse: false },
-  { id: 'leadership_02', dimension: 'leadership', prompt: 'I am comfortable making decisions when the team needs direction.', reverse: false },
-  { id: 'leadership_03', dimension: 'leadership', prompt: 'I prefer contributing without being responsible for coordination.', reverse: true },
-  { id: 'pace_01', dimension: 'pace', prompt: 'I like turning ideas into drafts quickly.', reverse: false },
-  { id: 'pace_02', dimension: 'pace', prompt: 'I prefer making visible progress early, even if the first version is rough.', reverse: false },
-  { id: 'pace_03', dimension: 'pace', prompt: 'I like taking more time to think before starting implementation.', reverse: true },
-  { id: 'conflict_01', dimension: 'conflict', prompt: 'I raise concerns early when I disagree with a direction.', reverse: false },
-  { id: 'conflict_02', dimension: 'conflict', prompt: 'I am comfortable discussing project problems directly.', reverse: false },
-  { id: 'conflict_03', dimension: 'conflict', prompt: 'I usually avoid disagreement unless it becomes serious.', reverse: true },
-  { id: 'detail_01', dimension: 'detail', prompt: 'I often notice small mistakes or inconsistencies in project work.', reverse: false },
-  { id: 'detail_02', dimension: 'detail', prompt: 'I like reviewing work carefully before submission.', reverse: false },
-  { id: 'detail_03', dimension: 'detail', prompt: 'I prefer focusing on the overall idea instead of small details.', reverse: true },
-  { id: 'collaboration_01', dimension: 'collaboration', prompt: 'I work best when the team discusses tasks frequently.', reverse: false },
-  { id: 'collaboration_02', dimension: 'collaboration', prompt: 'I enjoy solving problems together with teammates.', reverse: false },
-  { id: 'collaboration_03', dimension: 'collaboration', prompt: 'I prefer owning my part independently most of the time.', reverse: true }
+  { id: 'kyodo15_q01', dimension: 'planning', prompt: 'I like teams to agree on goals, roles, and deadlines early.', reverse: false },
+  { id: 'kyodo15_q02', dimension: 'planning', prompt: 'I am comfortable starting before the plan is fully clear.', reverse: false },
+  { id: 'kyodo15_q03', dimension: 'communication', prompt: 'I prefer regular check-ins rather than long silent stretches.', reverse: false },
+  { id: 'kyodo15_q04', dimension: 'communication', prompt: 'I would rather work independently and only update when needed.', reverse: true },
+  { id: 'kyodo15_q05', dimension: 'initiative', prompt: 'I usually start tasks without waiting to be asked.', reverse: false },
+  { id: 'kyodo15_q06', dimension: 'pace', prompt: 'If I commit to a task, people can rely on me to deliver it on time.', reverse: false },
+  { id: 'kyodo15_q07', dimension: 'leadership', prompt: 'I am comfortable making a decision when the team is stuck.', reverse: false },
+  { id: 'kyodo15_q08', dimension: 'leadership', prompt: 'I would rather support a coordinator than be the coordinator.', reverse: true },
+  { id: 'kyodo15_q09', dimension: 'pace', prompt: 'I prefer working steadily across the timeline instead of rushing at the end.', reverse: false },
+  { id: 'kyodo15_q10', dimension: 'flexibility', prompt: 'I adapt well when the plan changes mid-project.', reverse: false },
+  { id: 'kyodo15_q11', dimension: 'detail', prompt: 'I naturally notice small errors or missing details in group work.', reverse: false },
+  { id: 'kyodo15_q12', dimension: 'detail', prompt: 'When time is tight, I am happy to ship something “good enough.”', reverse: true },
+  { id: 'kyodo15_q13', dimension: 'conflict', prompt: 'If I disagree with teammates, I usually say it directly and respectfully.', reverse: false },
+  { id: 'kyodo15_q14', dimension: 'conflict', prompt: 'I tend to avoid disagreement unless someone else brings it up first.', reverse: true },
+  { id: 'kyodo15_q15', dimension: 'communication', prompt: 'I often help the team by summarizing next steps and checking progress.', reverse: false }
 ];
 
 export const answerOptions = [

@@ -7,7 +7,8 @@ const weights: Record<Dimension, number> = {
   conflict: 16,
   detail: 12,
   leadership: 10,
-  collaboration: 10
+  initiative: 5,
+  flexibility: 5
 };
 
 const dimensions = Object.keys(weights) as Dimension[];
@@ -72,7 +73,8 @@ function generateInsights(results: PersonalityResult[]) {
         communication: 'Your team has similar expectations around updates and responsiveness.',
         detail: 'Your team may share similar standards for review and polish.',
         pace: 'Your team may move at a similar working rhythm.',
-        collaboration: 'Your team may have similar expectations around working together.'
+        initiative: 'Your team has similar expectations around starting and unblocking work.',
+        flexibility: 'Your team may adapt to project changes in similar ways.'
       };
       if (copy[item.dimension]) strengths.push(copy[item.dimension]!);
     }
@@ -83,14 +85,18 @@ function generateInsights(results: PersonalityResult[]) {
         communication: 'The team may need to agree on how often updates should happen.',
         pace: 'Members may have different ideas of what soon means.',
         conflict: 'Some concerns may be raised directly while others may stay quiet.',
-        leadership: 'The team should clarify who owns coordination and decisions.'
+        leadership: 'The team should clarify who owns coordination and decisions.',
+        initiative: 'Some members may start independently while others wait for clearer direction.',
+        flexibility: 'Members may have different comfort levels when plans change.'
       };
       const tipCopy: Partial<Record<Dimension, string>> = {
         planning: 'Set one weekly milestone and one flexible working area.',
         communication: 'Agree on a default update rhythm, such as every two days.',
         pace: 'Use draft deadlines before final deadlines.',
         conflict: 'Create a simple rule: raise blockers early, discuss calmly, decide together.',
-        leadership: 'Assign rotating ownership for meetings, notes, and task tracking.'
+        leadership: 'Assign rotating ownership for meetings, notes, and task tracking.',
+        initiative: 'Agree on who starts each task and when others should step in.',
+        flexibility: 'Mark which parts of the plan are fixed and which can change.'
       };
       if (copy[item.dimension]) frictions.push(copy[item.dimension]!);
       if (tipCopy[item.dimension]) tips.add(tipCopy[item.dimension]!);

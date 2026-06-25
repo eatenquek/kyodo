@@ -26,9 +26,7 @@ export default function QuestionnaireScreen() {
       setError('');
       await saveAnswer({
         questionId: question.id,
-        dimension: question.dimension,
-        value,
-        reverse: question.reverse
+        value
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this answer. Try again.');

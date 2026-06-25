@@ -72,24 +72,54 @@ const initialState: State = {
   compatibility: {}
 };
 
+const currentResultFields = ['initiative', 'flexibility', 'accountability', 'decisionComfort'] as const;
+
+function isCurrentWorkstyleResult(result: PersonalityResult | null | undefined): result is PersonalityResult {
+  return Boolean(result && currentResultFields.every((field) => Number.isFinite(result[field])));
+}
+
 function withoutLegacyFixtures(state: State): State {
   const registeredEmails = (state.registeredEmails ?? []).filter((email) => !isLegacyFixtureEmail(email));
   const currentUserId = state.user?.id;
-  const teams = state.teams.filter(
+  const questionIds = new Set(questions.map((question) => question.id));
+  const answers = Object.fromEntries(
+    Object.entries(state.answers ?? {}).filter(
+      ([questionId, answer]) => questionIds.has(questionId) && Number.isInteger(answer.value) && answer.value >= 1 && answer.value <= 5
+    )
+  );
+  const retainedTeams = state.teams.filter(
     (team) =>
       !team.id.startsWith('demo-team-') &&
       !legacyFixtureCodePattern.test(team.joinCode) &&
       !team.members.some((member) => isLegacyFixtureEmail(member.id))
   );
+  const hasOutdatedTeamResult = retainedTeams.some((team) =>
+    team.members.some((member) => member.result && !isCurrentWorkstyleResult(member.result))
+  );
+  const teams = retainedTeams.map((team) => ({
+    ...team,
+    members: team.members.map((member) => ({
+      ...member,
+      result: isCurrentWorkstyleResult(member.result) ? member.result : undefined
+    }))
+  }));
   const activeTeamId = state.activeTeamId && teams.some((team) => team.id === state.activeTeamId) ? state.activeTeamId : undefined;
-  const compatibility = Object.fromEntries(Object.entries(state.compatibility).filter(([teamId]) => teams.some((team) => team.id === teamId)));
+  const hasOutdatedOwnResult = Boolean(state.result && !isCurrentWorkstyleResult(state.result));
+  const compatibility =
+    hasOutdatedOwnResult || hasOutdatedTeamResult
+      ? {}
+      : Object.fromEntries(Object.entries(state.compatibility).filter(([teamId]) => teams.some((team) => team.id === teamId)));
 
   return {
     ...state,
     registeredEmails,
+    answers,
     user: state.user && isLegacyFixtureEmail(state.user.id) ? null : state.user,
     profile: state.profile && isLegacyFixtureEmail(state.profile.id) ? null : state.profile,
-    result: state.result && isLegacyFixtureEmail(state.result.userId) ? null : state.result,
+    result:
+      state.result && !isLegacyFixtureEmail(state.result.userId) && isCurrentWorkstyleResult(state.result)
+        ? state.result
+        : null,
     teams,
     activeTeamId:
       currentUserId && isLegacyFixtureEmail(currentUserId)
@@ -267,7 +297,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         }));
       },
       async completeQuestionnaire() {
-        const answers = questions.map((question) => state.answers[question.id]).filter(Boolean);
+        const answers = questions
+          .map((question) => state.answers[question.id])
+          .filter((answer): answer is Answer => Boolean(answer));
         const result = scoreQuestionnaire(currentUserId, answers);
         if (backendEnabled) await saveBackendResult(result);
         setState((current) => ({

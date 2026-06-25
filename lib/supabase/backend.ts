@@ -1,4 +1,5 @@
 import { calculateTeamCompatibility } from '@/services/scoring/compatibilityScoring';
+import { questionnaireVersion, questions } from '@/constants/questions';
 import { Answer, CompatibilityResult, PersonalityResult, Profile, Team } from '@/types/domain';
 import { generateJoinCode } from '@/utils/generateJoinCode';
 import { isSupabaseConfigured, supabase } from './client';
@@ -27,9 +28,7 @@ type ProfileRow = {
 
 type AnswerRow = {
   question_id: string;
-  dimension: Answer['dimension'];
   answer_value: number;
-  is_reverse_scored: boolean;
 };
 
 type ResultRow = {
@@ -40,7 +39,11 @@ type ResultRow = {
   pace_score: number;
   conflict_score: number;
   detail_score: number;
-  collaboration_score: number;
+  initiative_score: number | null;
+  flexibility_score: number | null;
+  accountability_score: number | null;
+  decision_comfort_score: number | null;
+  questionnaire_version: string | null;
   result_label: string;
   summary_text: string;
   created_at: string;
@@ -80,6 +83,13 @@ function throwBackendError(error: { message?: string }) {
   if (message.includes("Could not find the table 'public.")) {
     throw new Error(`${message}. Run supabase/schema.sql in the Supabase SQL Editor, then restart Expo.`);
   }
+  if (
+    ['initiative_score', 'flexibility_score', 'accountability_score', 'decision_comfort_score', 'questionnaire_version'].some(
+      (column) => message.includes(column)
+    )
+  ) {
+    throw new Error(`${message}. Apply the latest Supabase migration before completing the new questionnaire.`);
+  }
   throw new Error(message);
 }
 
@@ -96,7 +106,24 @@ function mapProfile(row: ProfileRow): Profile {
   };
 }
 
-function mapResult(row: ResultRow): PersonalityResult {
+type CurrentResultRow = ResultRow & {
+  initiative_score: number;
+  flexibility_score: number;
+  accountability_score: number;
+  decision_comfort_score: number;
+};
+
+function isCurrentResult(row: ResultRow): row is CurrentResultRow {
+  return (
+    row.questionnaire_version === questionnaireVersion &&
+    Number.isFinite(row.initiative_score) &&
+    Number.isFinite(row.flexibility_score) &&
+    Number.isFinite(row.accountability_score) &&
+    Number.isFinite(row.decision_comfort_score)
+  );
+}
+
+function mapResult(row: CurrentResultRow): PersonalityResult {
   return {
     userId: row.user_id,
     planning: row.planning_score,
@@ -105,7 +132,10 @@ function mapResult(row: ResultRow): PersonalityResult {
     pace: row.pace_score,
     conflict: row.conflict_score,
     detail: row.detail_score,
-    collaboration: row.collaboration_score,
+    initiative: row.initiative_score,
+    flexibility: row.flexibility_score,
+    accountability: row.accountability_score,
+    decisionComfort: row.decision_comfort_score,
     resultLabel: row.result_label,
     summaryText: row.summary_text,
     createdAt: row.created_at
@@ -121,7 +151,11 @@ function resultToRow(result: PersonalityResult) {
     pace_score: result.pace,
     conflict_score: result.conflict,
     detail_score: result.detail,
-    collaboration_score: result.collaboration,
+    initiative_score: result.initiative,
+    flexibility_score: result.flexibility,
+    accountability_score: result.accountability,
+    decision_comfort_score: result.decisionComfort,
+    questionnaire_version: questionnaireVersion,
     result_label: result.resultLabel,
     summary_text: result.summaryText
   };
@@ -149,13 +183,12 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
       row.question_id,
       {
         questionId: row.question_id,
-        dimension: row.dimension,
-        value: row.answer_value,
-        reverse: row.is_reverse_scored
+        value: row.answer_value
       }
     ])
   );
-  const result = ownResultRows?.[0] ? mapResult(ownResultRows[0]) : null;
+  const currentResultRow = ownResultRows?.find(isCurrentResult);
+  const result = currentResultRow ? mapResult(currentResultRow) : null;
 
   const teamIds = [...new Set((memberRows ?? []).map((row) => row.team_id))];
   if (!teamIds.length) {
@@ -191,7 +224,7 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
   const profiles = new Map((profileRows ?? []).map((row) => [row.id, mapProfile(row)]));
   const latestResults = new Map<string, PersonalityResult>();
   for (const row of resultRows ?? []) {
-    if (!latestResults.has(row.user_id)) latestResults.set(row.user_id, mapResult(row));
+    if (isCurrentResult(row) && !latestResults.has(row.user_id)) latestResults.set(row.user_id, mapResult(row));
   }
 
   const teams = (teamRows ?? []).map<Team>((team) => ({
@@ -253,13 +286,15 @@ export async function saveBackendProfile(userId: string, profile: Omit<Profile, 
 
 export async function saveBackendAnswer(userId: string, answer: Answer) {
   const client = requireClient();
+  const question = questions.find((item) => item.id === answer.questionId);
+  if (!question) throw new Error('This questionnaire item is not part of the current version.');
   const { error } = await client.from('questionnaire_answers').upsert(
     {
       user_id: userId,
       question_id: answer.questionId,
-      dimension: answer.dimension,
+      dimension: question.dimension,
       answer_value: answer.value,
-      is_reverse_scored: answer.reverse,
+      is_reverse_scored: question.reverse,
       updated_at: new Date().toISOString()
     },
     { onConflict: 'user_id,question_id' }
