@@ -67,10 +67,25 @@ export type Team = {
   members: TeamMember[];
 };
 
+export type CompatibilityRoleCoverage = {
+  id: 'coordinator' | 'builder' | 'quality' | 'connector';
+  label: string;
+  score: number;
+  members: string[];
+};
+
 export type CompatibilityResult = {
   teamId: string;
   score: number;
   scoreLabel: string;
+  pairFitScore?: number;
+  roleCoverageScore?: number;
+  coordinatorHealthScore?: number;
+  suggestedCoordinator?: string;
+  roleCoverage?: CompatibilityRoleCoverage[];
+  sharedResponsibilities?: string[];
+  overlapRisks?: string[];
+  gaps?: string[];
   strengths: string[];
   frictions: string[];
   tips: string[];

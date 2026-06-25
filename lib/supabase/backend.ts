@@ -260,6 +260,15 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
     };
   }
 
+  for (const team of teams) {
+    const calculated = calculateTeamCompatibility(team);
+    if (!calculated) continue;
+    compatibility[team.id] = {
+      ...calculated,
+      createdAt: compatibility[team.id]?.createdAt ?? calculated.createdAt
+    };
+  }
+
   return { profile, answers, result, teams, compatibility, activeTeamId: teams[0]?.id };
 }
 

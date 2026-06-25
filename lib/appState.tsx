@@ -105,10 +105,21 @@ function withoutLegacyFixtures(state: State): State {
   }));
   const activeTeamId = state.activeTeamId && teams.some((team) => team.id === state.activeTeamId) ? state.activeTeamId : undefined;
   const hasOutdatedOwnResult = Boolean(state.result && !isCurrentWorkstyleResult(state.result));
-  const compatibility =
+  const retainedCompatibility =
     hasOutdatedOwnResult || hasOutdatedTeamResult
       ? {}
       : Object.fromEntries(Object.entries(state.compatibility).filter(([teamId]) => teams.some((team) => team.id === teamId)));
+  const compatibility: Record<string, CompatibilityResult> = { ...retainedCompatibility };
+
+  for (const team of teams) {
+    if (!compatibility[team.id]) continue;
+    const calculated = calculateTeamCompatibility(team);
+    if (!calculated) continue;
+    compatibility[team.id] = {
+      ...calculated,
+      createdAt: compatibility[team.id].createdAt
+    };
+  }
 
   return {
     ...state,
