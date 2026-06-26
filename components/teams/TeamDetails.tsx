@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui';
+import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
 import { CompatibilityResult, Team } from '@/types/domain';
 
 const palette = {
@@ -31,6 +33,18 @@ export function TeamDetails({
   onGenerateInsights: () => void;
   onLeave: () => void;
 }) {
+  const completedProfileCount = team.members.filter((member) => member.result).length;
+  const groupSizeOptions = useMemo(() => getGroupSizeOptions(completedProfileCount), [completedProfileCount]);
+  const [targetGroupSize, setTargetGroupSize] = useState(3);
+  const effectiveTargetGroupSize = groupSizeOptions.includes(targetGroupSize)
+    ? targetGroupSize
+    : groupSizeOptions[0] ?? 3;
+  const formationSuggestion = useMemo(
+    () => suggestBestTeamFormation(team, effectiveTargetGroupSize),
+    [effectiveTargetGroupSize, team]
+  );
+  const showFormationCard = completedProfileCount >= 4;
+
   return (
     <View style={styles.detailsCard}>
       <View style={styles.detailsHeader}>
@@ -84,7 +98,40 @@ export function TeamDetails({
             </Text>
           </View>
         </View>
-        {compatibility?.strengths[0] ? <Text style={styles.insightStrength}>{compatibility.strengths[0]}</Text> : null}
+        {compatibility ? (
+          <View style={styles.compatibilityReport}>
+            <View style={styles.metricGrid}>
+              <Metric label="Pair fit" value={compatibility.pairFitScore ?? compatibility.score} />
+              <Metric label="Role coverage" value={compatibility.roleCoverageScore ?? compatibility.score} />
+              <Metric label="Coordination" value={compatibility.coordinatorHealthScore ?? compatibility.score} />
+            </View>
+
+            {compatibility.suggestedCoordinator ? (
+              <View style={styles.coordinatorCallout}>
+                <Ionicons name="flag-outline" size={15} color={palette.accentDark} />
+                <Text style={styles.coordinatorText}>{compatibility.suggestedCoordinator}</Text>
+              </View>
+            ) : null}
+
+            {compatibility.roleCoverage?.length ? (
+              <View style={styles.roleGrid}>
+                {compatibility.roleCoverage.map((role) => (
+                  <View key={role.id} style={styles.roleCard}>
+                    <View style={styles.roleHeader}>
+                      <Text style={styles.roleLabel}>{role.label}</Text>
+                      <Text style={styles.roleScore}>{role.score}%</Text>
+                    </View>
+                    <Text style={styles.roleMembers} numberOfLines={2}>{role.members.join(', ')}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <InsightSection title="Strengths" items={compatibility.strengths} />
+            <InsightSection title="Watch-outs" items={[...(compatibility.gaps ?? []), ...(compatibility.overlapRisks ?? []), ...compatibility.frictions]} />
+            <InsightSection title="Next steps" items={compatibility.tips} />
+          </View>
+        ) : null}
         {canGenerateCompatibility ? (
           <AppButton
             title={compatibility ? 'Refresh insights' : 'Generate insights'}
@@ -95,10 +142,154 @@ export function TeamDetails({
         ) : null}
       </View>
 
+      {showFormationCard ? (
+        <FormationCard
+          suggestion={formationSuggestion}
+          completedProfileCount={completedProfileCount}
+          totalMemberCount={team.members.length}
+          targetGroupSize={effectiveTargetGroupSize}
+          groupSizeOptions={groupSizeOptions}
+          onTargetGroupSizeChange={setTargetGroupSize}
+        />
+      ) : null}
+
       <Pressable onPress={onLeave} style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}>
         <Ionicons name="exit-outline" size={18} color={palette.error} />
         <Text style={styles.leaveText}>Leave this team</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function FormationCard({
+  suggestion,
+  completedProfileCount,
+  totalMemberCount,
+  targetGroupSize,
+  groupSizeOptions,
+  onTargetGroupSizeChange
+}: {
+  suggestion: TeamFormationSuggestion | null;
+  completedProfileCount: number;
+  totalMemberCount: number;
+  targetGroupSize: number;
+  groupSizeOptions: number[];
+  onTargetGroupSizeChange: (size: number) => void;
+}) {
+  return (
+    <View style={styles.formationCard}>
+      <View style={styles.formationHeader}>
+        <View style={styles.formationIcon}>
+          <Ionicons name="git-network-outline" size={18} color={palette.accentDark} />
+        </View>
+        <View style={styles.formationCopy}>
+          <Text style={styles.formationTitle}>Best group split</Text>
+          <Text style={styles.formationBody}>
+            {suggestion
+              ? `${suggestion.overallScore}% · ${suggestion.scoreLabel} · target ${suggestion.groupSize} per team.`
+              : formationUnavailableText(completedProfileCount, totalMemberCount, targetGroupSize)}
+          </Text>
+        </View>
+      </View>
+
+      {groupSizeOptions.length ? (
+        <View style={styles.groupSizePicker}>
+          <Text style={styles.groupSizeLabel}>Target team size</Text>
+          <View style={styles.groupSizeOptions}>
+            {groupSizeOptions.map((size) => (
+              <Pressable
+                key={size}
+                accessibilityRole="button"
+                accessibilityState={{ selected: size === targetGroupSize }}
+                onPress={() => onTargetGroupSizeChange(size)}
+                style={({ pressed }) => [
+                  styles.groupSizeChip,
+                  size === targetGroupSize && styles.groupSizeChipActive,
+                  pressed && styles.pressed
+                ]}
+              >
+                <Text style={[styles.groupSizeChipText, size === targetGroupSize && styles.groupSizeChipTextActive]}>
+                  {size}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {suggestion ? (
+        <View style={styles.formationReport}>
+          <Text style={styles.formationSizes}>Actual split: {formatGroupSizes(suggestion.groupSizes)}</Text>
+          <Text style={styles.formationMethod}>Checked {suggestion.evaluatedGroupings} possible groupings exactly.</Text>
+          <View style={styles.metricGrid}>
+            <Metric label="Average team" value={suggestion.averageTeamScore} />
+            <Metric label="Weakest team" value={suggestion.weakestTeamScore} />
+            <Metric label="Balance" value={suggestion.balanceScore} />
+          </View>
+
+          {suggestion.groups.map((group, index) => (
+            <View key={group.id} style={styles.suggestedGroupCard}>
+              <View style={styles.suggestedGroupHeader}>
+                <Text style={styles.suggestedGroupTitle}>
+                  Team {index + 1} · {group.members.length}
+                </Text>
+                <Text style={styles.suggestedGroupScore}>{group.score}%</Text>
+              </View>
+              <Text style={styles.suggestedGroupMembers}>{group.members.join(', ')}</Text>
+              {group.suggestedCoordinator ? (
+                <Text style={styles.suggestedGroupNote}>{group.suggestedCoordinator}</Text>
+              ) : null}
+              {group.strengths[0] ? <Text style={styles.suggestedGroupStrength}>{group.strengths[0]}</Text> : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function getGroupSizeOptions(completedProfileCount: number) {
+  if (completedProfileCount < 4) return [];
+  const maxSize = completedProfileCount - 2;
+  return Array.from({ length: maxSize - 1 }, (_, index) => index + 2);
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.metricCard}>
+      <Text style={styles.metricValue}>{value}%</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function formationUnavailableText(completedProfileCount: number, totalMemberCount: number, targetGroupSize: number) {
+  if (completedProfileCount !== totalMemberCount) {
+    return `${completedProfileCount}/${totalMemberCount} profiles are ready. Everyone needs a completed profile first.`;
+  }
+  if (targetGroupSize > completedProfileCount - 2) {
+    return `Choose a smaller target size so there can be at least two teams.`;
+  }
+  return 'This pool is too large for exact search on-device. Split into smaller pools first.';
+}
+
+function formatGroupSizes(groupSizes: number[]) {
+  return [...groupSizes].sort((a, b) => b - a).join(' / ');
+}
+
+function InsightSection({ title, items }: { title: string; items: string[] }) {
+  const uniqueItems = [...new Set(items)].slice(0, 3);
+  if (!uniqueItems.length) return null;
+
+  return (
+    <View style={styles.insightSection}>
+      <Text style={styles.insightSectionTitle}>{title}</Text>
+      {uniqueItems.map((item) => (
+        <View key={item} style={styles.insightBulletRow}>
+          <View style={styles.insightBullet} />
+          <Text style={styles.insightBulletText}>{item}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -163,7 +354,103 @@ const styles = StyleSheet.create({
   insightCopy: { flex: 1 },
   insightTitle: { color: palette.text, fontSize: 14, fontWeight: '800' },
   insightBody: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
-  insightStrength: { color: palette.secondary, fontSize: 12, lineHeight: 18 },
+  compatibilityReport: { gap: 12 },
+  metricGrid: { flexDirection: 'row', gap: 8 },
+  metricCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 10
+  },
+  metricValue: { color: palette.accentDark, fontSize: 17, fontWeight: '900' },
+  metricLabel: { color: palette.secondary, fontSize: 9, fontWeight: '800', marginTop: 2 },
+  coordinatorCallout: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: palette.accentSoft,
+    padding: 10
+  },
+  coordinatorText: { flex: 1, color: palette.accentDark, fontSize: 12, fontWeight: '700', lineHeight: 17 },
+  roleGrid: { gap: 8 },
+  roleCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: '#FFFFFF',
+    padding: 10
+  },
+  roleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  roleLabel: { color: palette.text, fontSize: 12, fontWeight: '800' },
+  roleScore: { color: palette.accentDark, fontSize: 12, fontWeight: '900' },
+  roleMembers: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  insightSection: { gap: 7 },
+  insightSectionTitle: { color: palette.text, fontSize: 12, fontWeight: '900' },
+  insightBulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  insightBullet: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.accent, marginTop: 6 },
+  insightBulletText: { flex: 1, color: palette.secondary, fontSize: 12, lineHeight: 18 },
+  formationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: 14,
+    marginTop: 12,
+    gap: 12
+  },
+  formationHeader: { flexDirection: 'row', alignItems: 'center' },
+  formationIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.accentSoft,
+    marginRight: 10
+  },
+  formationCopy: { flex: 1 },
+  formationTitle: { color: palette.text, fontSize: 14, fontWeight: '800' },
+  formationBody: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  formationReport: { gap: 10 },
+  groupSizePicker: { gap: 8 },
+  groupSizeLabel: { color: palette.text, fontSize: 12, fontWeight: '900' },
+  groupSizeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  groupSizeChip: {
+    minWidth: 34,
+    minHeight: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10
+  },
+  groupSizeChipActive: {
+    borderColor: palette.accent,
+    backgroundColor: palette.accent
+  },
+  groupSizeChipText: { color: palette.secondary, fontSize: 12, fontWeight: '900' },
+  groupSizeChipTextActive: { color: '#FFFFFF' },
+  formationSizes: { color: palette.text, fontSize: 12, fontWeight: '800' },
+  formationMethod: { color: palette.secondary, fontSize: 10, lineHeight: 15 },
+  suggestedGroupCard: {
+    borderRadius: 12,
+    backgroundColor: '#F8FCFA',
+    borderWidth: 1,
+    borderColor: '#E7EFEA',
+    padding: 11
+  },
+  suggestedGroupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  suggestedGroupTitle: { color: palette.text, fontSize: 13, fontWeight: '900' },
+  suggestedGroupScore: { color: palette.accentDark, fontSize: 13, fontWeight: '900' },
+  suggestedGroupMembers: { color: palette.text, fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 5 },
+  suggestedGroupNote: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 6 },
+  suggestedGroupStrength: { color: palette.accentDark, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 6 },
   leaveButton: {
     minHeight: 42,
     flexDirection: 'row',
