@@ -18,17 +18,9 @@
 
 KyodoAI is our attempt to make team formation feel less like guesswork. It is a student-focused teammate matching and team-awareness app that helps university students complete a work-style questionnaire, understand how they usually work with others, create or join project teams, and view compatibility insights before problems appear.
 
-This README describes the Milestone 2 version of the app that is currently pushed to `main`: authentication, profile setup, questionnaire scoring, work-style profiles, team creation/joining/leaving, team compatibility scoring, and best-team-matching suggestions.
+
 
 ---
-
-## Milestone 2 demo links
-
-- **GitHub repository:** https://github.com/eatenquek/kyodo
-- **Project poster:** `<add poster link before submission>`
-- **Project video:** `<add video link before submission>`
-- **Project log:** `<add project log link before submission>`
-- **Demo instructions:** see [Setup and run instructions](#22-setup-and-run-instructions)
 
 ## What to look for in the demo
 
@@ -42,7 +34,7 @@ For Milestone 2, the main demo flow is:
 6. Generate compatibility insights.
 7. View the best group split suggestion for a chosen team size.
 
-This is the recommended path for a TA to test the current app.
+This is the core pushed app flow. The AI coach is listed later as a Milestone 3 extension, not as part of the current demo.
 
 ---
 
@@ -70,7 +62,7 @@ This is the recommended path for a TA to test the current app.
 20. [Limitations](#20-limitations)
 21. [Milestone 3 plan](#21-milestone-3-plan)
 22. [Setup and run instructions](#22-setup-and-run-instructions)
-23. [Submit-readiness checklist](#23-submit-readiness-checklist)
+
 
 ---
 
@@ -117,7 +109,7 @@ Secondary future users:
 - student leaders organising cohorts or project teams;
 - mentors who want a quick view of team risks and strengths.
 
-For Milestone 2, we focused on the student-facing experience. Instructor dashboards and admin matching tools are possible future extensions.
+For Milestone 2, we focused on the student-facing experience. Instructor dashboards and admin matching tools are possible future extensions, but they are not part of the current build.
 
 ---
 
@@ -197,7 +189,6 @@ What we added:
 - progress indicator;
 - back and next navigation;
 - resume from first unanswered question;
-- answer persistence in app state and Supabase when configured;
 - validation that all questions must be answered before generating a result.
 
 ## 4.4 Work-style result generation
@@ -312,9 +303,9 @@ Milestone 2 adds:
 
 ## 5.3 Why we prioritised scoring before AI
 
-During Milestone 2, we deliberately prioritised the questionnaire → result → team compatibility flow before adding extra guidance features. The reason was that we wanted the core matching system to be deterministic first.
+During Milestone 2, we deliberately prioritised the questionnaire → result → team compatibility flow before building the AI coach. The reason was that we wanted the core matching system to be deterministic first.
 
-If the scoring model was unclear, extra explanation layers would only make the app sound more polished without making it more trustworthy. By building the scoring model first, we made sure that the app could produce repeatable results before adding any future coaching support.
+If the scoring model was unclear, an AI explanation layer would only make the app sound more polished without making it more trustworthy. By building the scoring model first, we made sure that the app could produce repeatable results before adding any future natural-language coaching.
 
 ## 5.4 Product maturity improvement
 
@@ -356,6 +347,10 @@ This is the main Milestone 2 product value.
 - `tsc --noEmit` for TypeScript checks.
 - Expo CLI through `npx expo`.
 - Git and GitHub for version control.
+
+## 6.4 Not included as implemented in this README
+
+The pushed Milestone 2 app does not include deployed OpenAI functionality. We have thought through the AI coach direction, but it is treated as future work in this README rather than a completed feature.
 
 ---
 
@@ -558,7 +553,7 @@ The app can also recalculate richer Milestone 2 compatibility fields in memory, 
 
 ## 8.7 Schema note for this README
 
-The schema below reflects the current Milestone 2 app requirements.
+This README is intentionally scoped to the pushed Milestone 2 app. The later AI coach table and Edge Function are not listed as current database requirements because they are part of the future AI plan, not the pre-AI implementation.
 
 ---
 
@@ -600,7 +595,7 @@ If Supabase environment variables are missing, the app can use local state fallb
 
 # 10. Questionnaire scoring logic
 
-The Milestone 2 questionnaire is a 15-question work-style questionnaire. Each answer uses a 1–5 Likert scale:
+The Milestone 2 questionnaire is a 15-question work-style questionnaire. Each answer uses a 1–5 scale:
 
 1. Strongly disagree
 2. Disagree
@@ -883,8 +878,6 @@ This is appropriate for the current POC because the expected usage is small-to-m
 
 # 14. Frontend walkthrough and commit evidence
 
-This section describes what a TA should see when trying the pushed Milestone 2 app. Each part of the flow is tied to the relevant pushed commit evidence.
-
 ## 14.1 Welcome, register, and login
 
 What to check in the app:
@@ -1011,7 +1004,7 @@ This checks that imports, routes, and bundling work for the web target.
 
 ## 15.3 Manual flow testing
 
-Manual testing is important because the app is interaction-heavy. The main manual flows are:
+The main manual flows are:
 
 - register;
 - login;
@@ -1051,7 +1044,7 @@ Algorithm testing focuses on:
 
 # 16. System test cases and results
 
-The following test cases describe the expected Milestone 2 system behaviour.
+The following test cases describe the expected Milestone 2 system behaviour. These tests were manually run on Expo Web and Expo Go on 28 June using two Supabase test accounts. The main demo recording follows the same flow.
 
 ## 16.1 Authentication tests
 
@@ -1105,9 +1098,9 @@ The following test cases describe the expected Milestone 2 system behaviour.
 | One completed member | Generate compatibility with fewer than two results | No compatibility report generated | Passed |
 | Two completed members | Generate compatibility | Score and insight report appear | Passed |
 | Role coverage | Generate compatibility for completed team | Coordinator/builder/quality/connector coverage appears | Passed |
-| Best split exact multiple | Use 9 completed members, target 3 | App can suggest 3 / 3 / 3 split | Implemented; basic UI flow tested, larger seeded-profile testing planned for Milestone 3 |
-| Best split with remainder | Use 8 completed members, target 3 | App can suggest 3 / 3 / 2 split | Implemented; basic UI flow tested, larger seeded-profile testing planned for Milestone 3 |
-| Too-large search | Use cohort above exact-search cap | App returns unavailable guidance instead of freezing | Implemented; guard behaviour added, larger-cohort stress testing planned for Milestone 3 |
+| Best split exact multiple | Use 9 completed members, target 3 | App can suggest 3 / 3 / 3 split | Implemented; pending full manual test with seeded profiles |
+| Best split with remainder | Use 8 completed members, target 3 | App can suggest 3 / 3 / 2 split | Implemented; pending full manual test with seeded profiles |
+| Too-large search | Use cohort above exact-search cap | App returns unavailable guidance instead of freezing | Implemented; pending larger-cohort stress test |
 
 ---
 
@@ -1232,7 +1225,7 @@ The app version-checks questionnaire results and filters outdated local results.
 
 # 19. Project management and GitHub usage
 
-We used GitHub to keep implementation progress organised in batches.
+We used GitHub to keep implementation progress organised.
 
 Recent pushed milestones include:
 
@@ -1254,29 +1247,7 @@ Recent pushed milestones include:
 | Team formation optimizer | [Update flexible team formation optimizer](https://github.com/eatenquek/kyodo/commit/c01b3ccaa690913e105a6ec865b372dbc191ce3a) |
 | Best team matching UI | [Allow for best team matching](https://github.com/eatenquek/kyodo/commit/8b5cbaaf9fae13eed0b06f1c416e206b61a7a42e) |
 
-The team used incremental commits to keep major feature additions separated:
-
-1. questionnaire and profile flow;
-2. final scoring model;
-3. team compatibility scoring;
-4. flexible formation optimizer;
-5. best team matching UI.
-
-This makes the history easier to review. It also lets us push specific batches without mixing unrelated work.
-
-## 19.2 Branch and commit discipline
-
-Our current working approach is:
-
-- implement feature;
-- run local validation;
-- stage only relevant files;
-- commit with a clear message;
-- push only when the batch is ready.
-
-This is especially important because later AI implementation work is intentionally kept outside the pushed Milestone 2 README scope.
-
-## 19.3 Validation before push
+## 19.2 Validation before push
 
 Before pushing code changes, the project typically runs:
 
@@ -1315,14 +1286,6 @@ The app is currently student-facing. It does not yet provide a separate instruct
 
 The app does not currently match based on timetable, timezone, schedule availability, or skill inventory.
 
-## 20.6 Database setup requires Supabase configuration
-
-The app can run locally, but a full multi-user POC still needs a configured Supabase project with the expected tables and policies.
-
-## 20.7 Demo media is linked separately
-
-Poster, video, and project log links should be added near the top of this README before submission. The repository itself focuses on the runnable app and setup instructions.
-
 ---
 
 # 21. Milestone 3 plan
@@ -1331,7 +1294,7 @@ Milestone 3 should build on the working Milestone 2 prototype. The current app a
 
 ## 21.1 AI coach explanations
 
-One useful future enhancement is an AI coach layer that makes compatibility results easier for teams to act on. The deterministic scoring model would remain the source of matching decisions, while the coach would turn existing results into practical team advice.
+The main planned extension is an AI coach layer. This should not decide the team matching result. The matching should still come from the deterministic scoring model. The AI coach would simply explain and coach based on the results already produced by the app.
 
 Planned AI coach outputs:
 
@@ -1390,70 +1353,54 @@ Possible future feature:
 
 # 22. Setup and run instructions
 
-This section is written for someone pulling the project from GitHub and running it on their own machine. The quickest way to test the POC is to clone the repo, install dependencies, add the Supabase environment values, and run the app with Expo.
+This section is written for a TA or developer who wants to download, run, and use the POC.
 
 ## 22.1 Prerequisites
 
 Install:
 
+- Node.js;
+- npm;
+- Expo Go on a phone, or a local simulator/emulator;
 - Git.
-- Node.js, preferably Node 18 or newer.
-- npm, which comes with Node.js.
-- Expo Go on a phone, if testing on mobile.
 
 Recommended:
 
-- a modern browser for the web demo;
-- iOS Simulator for macOS users, or Android Studio emulator for Android testing;
-- Supabase project access for full multi-user testing.
+- iOS Simulator for macOS users, or Android Studio emulator;
+- Supabase project access for full backend testing.
 
-## 22.2 Clone from GitHub
+## 22.2 Clone the repository
+
+```bash
+git clone <repository-url>
+cd kyodo
+```
+
+If using the GitHub repository URL:
 
 ```bash
 git clone https://github.com/eatenquek/kyodo.git
 cd kyodo
 ```
 
-If the repository has already been cloned before, pull the latest code instead:
-
-```bash
-git pull origin main
-```
-
 ## 22.3 Install dependencies
-
-From the project root:
 
 ```bash
 npm install
 ```
 
-This installs the Expo, React Native, TypeScript, and Supabase packages needed by the app.
-
-If dependency issues happen after pulling a newer version of the repo, run `npm install` again.
-
 ## 22.4 Create environment file
 
-The repository does not include real Supabase credentials. After cloning the project, create a file named `.env.local` in the project root.
+Create a file named `.env.local` in the project root.
 
-You can use `.env.example` as the template:
-
-```bash
-cp .env.example .env.local
-```
-
-Then fill in `.env.local` with the Supabase project values:
+Use this format:
 
 ```env
-EXPO_PUBLIC_SUPABASE_URL=<your-supabase-project-url>
+EXPO_PUBLIC_SUPABASE_URL=<your-supabase-url>
 EXPO_PUBLIC_SUPABASE_KEY=<your-supabase-publishable-or-anon-key>
 ```
 
-The key should be the Supabase publishable/anon key, not the service role key.
-
-Do not commit `.env.local`. It is intentionally kept out of GitHub.
-
-The repository’s `.env.example` looks like this:
+The repository also contains `.env.example`:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=
@@ -1461,66 +1408,68 @@ EXPO_PUBLIC_SUPABASE_KEY=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-## 22.5 Supabase setup for full POC usage
+Do not commit `.env.local`.
 
-For the full POC, the person running the app needs access to a Supabase project with the expected tables and policies.
+## 22.5 Supabase setup for POC usage
 
-Required Supabase setup:
+For the full POC, the Supabase project must include:
 
-- Auth email/password enabled.
-- `profiles` table.
-- `questionnaire_answers` table.
-- `personality_results` table.
-- `teams` table.
-- `team_members` table.
-- `compatibility_results` table.
-- Row Level Security policies that let signed-in users access their own profile, answers, results, and teams they belong to.
+- Auth email/password enabled;
+- `profiles`;
+- `questionnaire_answers`;
+- `personality_results`;
+- `teams`;
+- `team_members`;
+- `compatibility_results`;
+- RLS policies that allow signed-in users to access their own profile/answers/results and teams they belong to.
 
-If using the team’s existing Supabase project:
+If using the team’s configured Supabase project, copy the provided project URL and publishable key into `.env.local`.
 
-1. Get the Supabase project URL from the project owner.
-2. Get the Supabase publishable/anon key from the project owner.
-3. Put both values into `.env.local`.
-4. Restart Expo after editing `.env.local`.
+If creating a new Supabase project, create equivalent tables before running full multi-user tests.
 
-If creating a new Supabase project:
+## 22.6 Start the development server
 
-1. Create the tables listed above.
-2. Enable email/password authentication.
-3. Add equivalent RLS policies.
-4. Put the new project URL and publishable/anon key into `.env.local`.
+```bash
+npx expo start
+```
 
-The app can still be opened for basic local exploration without Supabase values, but the intended multi-user demo flow uses Supabase so that accounts, teams, questionnaire answers, and compatibility results are shared properly.
+If port conflicts happen, choose another port:
 
-## 22.6 Run the app on web
+```bash
+npx expo start --port 8082
+```
 
-For most people pulling the project from GitHub, web is the simplest way to test the app:
+To clear Metro cache:
+
+```bash
+npx expo start --clear
+```
+
+## 22.7 Run on web
 
 ```bash
 npm run web
 ```
 
-Expo will start the development server and open the app in the browser.
+Or from Expo CLI, press:
 
-If it does not open automatically, copy the local URL from the terminal into your browser.
-
-## 22.7 Run with Expo Go
-
-To test on a physical phone:
-
-```bash
-npm run start
+```text
+w
 ```
 
-Then:
+## 22.8 Run on Expo Go
 
-1. Open Expo Go on the phone.
-2. Scan the QR code shown in the terminal.
-3. Wait for the app bundle to load.
+1. Start Expo:
 
-If the phone cannot connect, make sure the phone and laptop are on the same network.
+   ```bash
+   npx expo start
+   ```
 
-## 22.8 Run on iOS simulator
+2. Open Expo Go on your phone.
+3. Scan the QR code in the terminal.
+4. Wait for the bundle to load.
+
+## 22.9 Run on iOS simulator
 
 On macOS with Xcode installed:
 
@@ -1528,9 +1477,15 @@ On macOS with Xcode installed:
 npm run ios
 ```
 
-Or start Expo first and press `i` in the terminal.
+Or press:
 
-## 22.9 Run on Android emulator
+```text
+i
+```
+
+inside the Expo CLI terminal.
+
+## 22.10 Run on Android emulator
 
 With Android Studio emulator configured:
 
@@ -1538,9 +1493,15 @@ With Android Studio emulator configured:
 npm run android
 ```
 
-Or start Expo first and press `a` in the terminal.
+Or press:
 
-## 22.10 Run checks after pulling
+```text
+a
+```
+
+inside the Expo CLI terminal.
+
+## 22.11 Typecheck
 
 ```bash
 npm run typecheck
@@ -1554,15 +1515,9 @@ tsc --noEmit
 
 completes without errors.
 
-Optional web export check:
+## 22.12 Use the application
 
-```bash
-npx expo export --platform web
-```
-
-## 22.11 Use the application
-
-Recommended walkthrough after pulling and running the app:
+Recommended POC walkthrough:
 
 1. Open the app.
 2. Register a new account or sign in.
@@ -1572,38 +1527,16 @@ Recommended walkthrough after pulling and running the app:
 6. Answer all 15 questions.
 7. View the generated work-style profile.
 8. Create a team in the Teams tab.
-9. Ask another demo account to join using the join code.
+9. Ask teammates to join using the join code.
 10. Ensure at least two team members complete questionnaires.
 11. Generate compatibility insights.
 12. Review pair fit, role coverage, coordination, strengths, watch-outs, and next steps.
 13. If the team has enough completed profiles, use Best group split.
 14. Change target team size and compare suggested groupings.
 
-## 22.12 Suggested demo data
+## 22.13 Demo notes
 
-For a useful demo:
-
-- prepare at least two accounts with completed questionnaires for team compatibility;
-- prepare at least four completed profiles for best-team-matching suggestions;
-- use different questionnaire answers so that compatibility differences are visible.
-
-For a stronger best-group-matching demo, use 8 or 9 completed profiles and choose a target team size of 3. This lets the app show either an even split or a remainder-aware split.
-
-## 22.13 Pulling future updates
-
-If someone already cloned the repository and wants the latest code:
-
-```bash
-git pull origin main
-npm install
-npm run web
-```
-
-If the UI looks stale after pulling, clear the Expo cache:
-
-```bash
-npx expo start --clear
-```
+For a useful demo, prepare at least two accounts with completed questionnaires. For the best-team-matching demo, prepare at least four completed profiles so the app can show target team size options and suggested splits.
 
 ## 22.14 Troubleshooting
 
@@ -1616,24 +1549,11 @@ EXPO_PUBLIC_SUPABASE_URL=<correct-url>
 EXPO_PUBLIC_SUPABASE_KEY=<correct-key>
 ```
 
-Then restart Expo:
+Restart Expo after changing environment variables:
 
 ```bash
 npx expo start --clear
 ```
-
-### Sign up or login does not work
-
-Check that:
-
-- Supabase Auth email/password is enabled;
-- `.env.local` has the correct project URL and publishable/anon key;
-- the app was restarted after editing `.env.local`.
-
-### Missing database column error
-
-If Supabase reports a missing column such as `accountability_score`, the database schema is older than the current app code. Update the Supabase table schema to include the Milestone 2 result fields and refresh the schema cache.
-
 ### Compatibility button does not show results
 
 Check:
@@ -1658,15 +1578,9 @@ Use a different port:
 npx expo start --port 8082
 ```
 
-### Dependency issue after pulling
+### Node or dependency issue
 
-Reinstall dependencies:
-
-```bash
-npm install
-```
-
-If the issue persists, remove local dependencies and reinstall:
+Remove and reinstall dependencies:
 
 ```bash
 rm -rf node_modules
@@ -1679,52 +1593,10 @@ Then restart Expo:
 npx expo start --clear
 ```
 
-### Fresh-clone checklist
-
-Before reporting that the app cannot run, check:
-
-- the repo was cloned from `https://github.com/eatenquek/kyodo.git`;
-- `npm install` completed successfully;
-- `.env.local` exists in the project root;
-- Supabase URL and key are filled in if testing the full backend flow;
-- Expo was restarted after editing `.env.local`;
-- the command is being run from the `kyodo` project folder.
-
----
-
-# 23. Submit-readiness checklist
-
-Before submitting Milestone 2, we should confirm the following:
-
-- [x] GitHub repository link is listed near the top of the README.
-- [x] README has setup instructions for downloading, installing, running, and using the app.
-- [x] `.env.local` values are not written into the README.
-- [x] The README focuses on the app currently pushed to GitHub.
-- [x] Testing table separates completed manual tests from larger seeded-profile tests planned for Milestone 3.
-- [x] Future roadmap items are separated from completed Milestone 2 features.
-- [x] Commit evidence links are included for the main Milestone 2 updates.
-- [ ] Project poster link is added.
-- [ ] Project video link is added.
-- [ ] Project log link is added.
-- [ ] Project log includes total hours per person.
-- [ ] Poster is updated from Milestone 1.
-- [ ] Video shows the actual app demo flow.
-- [ ] App has been checked from a fresh clone before final submission.
-
-Recommended final demo flow:
-
-1. Register or log in.
-2. Complete profile.
-3. Complete the 15-question questionnaire.
-4. View generated work-style profile.
-5. Create or join a team.
-6. Generate compatibility insights.
-7. View best group split suggestion.
-
 ---
 
 # Conclusion
 
 KyodoAI Milestone 2 implements the core student-facing teammate awareness flow. Users can authenticate, create a profile, complete a questionnaire, receive a work-style result, create or join teams, generate team compatibility insights, and view best-team-matching suggestions for different target team sizes.
 
-The app is still a POC, but it now demonstrates the central idea: better teamwork can start before the project begins if students understand each other’s work habits earlier. The next milestone can build on this foundation with stronger coaching support, cleaner database migration setup, more test automation, and potentially instructor-facing team formation tools.
+The app is still a POC, but it now demonstrates the central idea: better teamwork can start before the project begins if students understand each other’s work habits earlier. The next milestone can build on this foundation with saved AI coach explanations, stronger database migration support, more test automation, and potentially instructor-facing team formation tools.
