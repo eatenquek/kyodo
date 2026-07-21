@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui';
+import { generateTeamCoachAdvice, TeamCoachAdvice } from '@/services/ai/teamCoach';
+import { buildTeamCoachPayload } from '@/services/ai/teamCoachPayload';
+import { getCoachAvailability } from '@/services/ai/coachAvailability';
+import { describeCoachError } from '@/services/ai/coachErrors';
 import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
 import { CompatibilityResult, Team } from '@/types/domain';
 
@@ -43,7 +47,53 @@ export function TeamDetails({
     () => suggestBestTeamFormation(team, effectiveTargetGroupSize),
     [effectiveTargetGroupSize, team]
   );
+  const coachAvailability = getCoachAvailability({
+    memberCount: team.members.length,
+    completedResultCount: completedProfileCount,
+    hasCompatibility: Boolean(compatibility),
+    hasFormation: Boolean(formationSuggestion)
+  });
   const showFormationCard = completedProfileCount >= 4;
+  const [coachAdvice, setCoachAdvice] = useState<TeamCoachAdvice | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [coachError, setCoachError] = useState('');
+
+  const coachSignature = useMemo(
+    () =>
+      buildTeamCoachPayload({
+        team,
+        compatibility,
+        formation: formationSuggestion,
+        targetGroupSize: effectiveTargetGroupSize,
+        refresh: false
+      }).cache.formationSignature,
+    [team, compatibility, formationSuggestion, effectiveTargetGroupSize]
+  );
+
+  useEffect(() => {
+    setCoachAdvice(null);
+    setCoachError('');
+  }, [coachSignature]);
+
+  async function createCoachAdvice(refresh = false) {
+    if (coachLoading) return;
+    try {
+      setCoachLoading(true);
+      setCoachError('');
+      const advice = await generateTeamCoachAdvice({
+        team,
+        compatibility,
+        formation: formationSuggestion,
+        targetGroupSize: effectiveTargetGroupSize,
+        refresh
+      });
+      setCoachAdvice(advice);
+    } catch (err) {
+      setCoachError(describeCoachError(err));
+    } finally {
+      setCoachLoading(false);
+    }
+  }
 
   return (
     <View style={styles.detailsCard}>
@@ -153,10 +203,72 @@ export function TeamDetails({
         />
       ) : null}
 
+      <AiCoachCard
+        advice={coachAdvice}
+        error={coachError}
+        loading={coachLoading}
+        canGenerate={coachAvailability.canGenerate}
+        reason={coachAvailability.reason}
+        onGenerate={() => void createCoachAdvice(Boolean(coachAdvice))}
+      />
+
       <Pressable onPress={onLeave} style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}>
         <Ionicons name="exit-outline" size={18} color={palette.error} />
         <Text style={styles.leaveText}>Leave this team</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function AiCoachCard({
+  advice,
+  error,
+  loading,
+  canGenerate,
+  reason,
+  onGenerate
+}: {
+  advice: TeamCoachAdvice | null;
+  error: string;
+  loading: boolean;
+  canGenerate: boolean;
+  reason: string;
+  onGenerate: () => void;
+}) {
+  return (
+    <View style={styles.aiCoachCard}>
+      <View style={styles.formationHeader}>
+        <View style={styles.aiCoachIcon}>
+          <Ionicons name="chatbubbles-outline" size={18} color={palette.accentDark} />
+        </View>
+        <View style={styles.formationCopy}>
+          <Text style={styles.formationTitle}>Kyodo</Text>
+        </View>
+      </View>
+
+      {error ? <Text style={styles.aiCoachError}>{error}</Text> : null}
+
+      {advice ? (
+        <View style={styles.aiCoachReport}>
+          <Text style={styles.aiCoachSummary}>{advice.summary}</Text>
+          <InsightSection title="Persona simulation" items={advice.simulation} />
+          <InsightSection title="Coach notes" items={advice.coachingNotes} />
+          <RoleSuggestionSection items={advice.roleSuggestions} />
+          <InsightSection title="Risks to prevent" items={advice.riskWarnings} />
+          <InsightSection title="Working agreement" items={advice.workingAgreement} />
+          <InsightSection title="First meeting plan" items={advice.firstMeetingPlan} />
+        </View>
+      ) : null}
+
+      {reason ? <Text style={styles.aiCoachHint}>{reason}</Text> : null}
+
+      <AppButton
+        title={advice ? 'Refresh' : 'Ask Kyodo'}
+        variant="secondary"
+        loading={loading}
+        disabled={!canGenerate || loading}
+        onPress={onGenerate}
+      />
     </View>
   );
 }
@@ -244,6 +356,22 @@ function FormationCard({
           ))}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+function RoleSuggestionSection({ items }: { items: TeamCoachAdvice['roleSuggestions'] }) {
+  if (!items.length) return null;
+
+  return (
+    <View style={styles.insightSection}>
+      <Text style={styles.insightSectionTitle}>Suggested roles</Text>
+      {items.slice(0, 5).map((item) => (
+        <View key={`${item.member}-${item.role}`} style={styles.roleSuggestionCard}>
+          <Text style={styles.roleSuggestionTitle}>{item.member} · {item.role}</Text>
+          <Text style={styles.roleSuggestionBody}>{item.reason}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -451,6 +579,37 @@ const styles = StyleSheet.create({
   suggestedGroupMembers: { color: palette.text, fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 5 },
   suggestedGroupNote: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 6 },
   suggestedGroupStrength: { color: palette.accentDark, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 6 },
+  aiCoachCard: {
+    backgroundColor: '#F8FCFA',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#DDEBE4',
+    padding: 14,
+    marginTop: 12,
+    gap: 12
+  },
+  aiCoachIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    marginRight: 10
+  },
+  aiCoachError: { color: palette.error, fontSize: 11, fontWeight: '700', lineHeight: 16 },
+  aiCoachHint: { color: palette.secondary, fontSize: 11, lineHeight: 16 },
+  aiCoachReport: { gap: 12 },
+  aiCoachSummary: { color: palette.text, fontSize: 13, fontWeight: '800', lineHeight: 19 },
+  roleSuggestionCard: {
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: 10
+  },
+  roleSuggestionTitle: { color: palette.text, fontSize: 12, fontWeight: '900' },
+  roleSuggestionBody: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
   leaveButton: {
     minHeight: 42,
     flexDirection: 'row',
