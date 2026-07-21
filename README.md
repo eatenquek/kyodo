@@ -38,6 +38,47 @@ This is the core pushed app flow. The AI coach is listed later as a Milestone 3 
 
 ---
 
+# Notes (post-milestone 2)
+
+Quick notes on stuff added after the milestone 2 write-up below — the sections
+numbered 1-22 further down are the original submission doc.
+
+One thing to keep in mind with compatibility results: treat them as a
+conversation starter, not a diagnosis. Don't use language that says a team or
+person is "incompatible" or "toxic" or "scientifically matched" — it's just
+self-reported work-style preferences, not a real measurement of anyone.
+
+**Running it**
+- No backend: `npm run web:local`
+- With Supabase: copy `.env.example` to `.env.local`, fill in the URL/anon key, then `npm run web`
+- Tests: `npm test` / `npm run typecheck`
+
+**What's working:** auth, profile, questionnaire, scoring, teams, compatibility
+report, group split, the onboarding tracker on Home, teammate work-style notes.
+
+**AI coach:** needs the edge function deployed and `OPENAI_API_KEY` set, otherwise
+it just shows an error instead of crashing.
+
+**Not built yet:** instructor/cohort mode, availability matching, push
+notifications, live/realtime updates.
+
+**Known gaps**
+- questionnaire is self-reported, not a validated instrument
+- group split search caps out above ~50k combinations, exact below that
+- local (no-backend) mode is single device, "auth" just checks a known email
+- join codes can't be rotated/revoked yet
+- no realtime — refresh to see teammate updates
+- no component/e2e tests, backend query layer only manually tested
+
+**Todo**
+- persist the full compatibility record instead of recomputing it
+- rotate/revoke join codes
+- a11y roles on remaining buttons
+- refetch team data when a screen comes back into focus
+- instructor/cohort mode for splitting a whole class into teams
+- availability as a matching input alongside work style
+
+
 # Table of contents
 
 1. [Problem motivation](#1-problem-motivation)
@@ -975,6 +1016,13 @@ Commit evidence:
 # 15. Testing strategy
 
 Testing for Milestone 2 focuses on functional correctness, deterministic scoring, data persistence, and UI flow stability.
+
+> **Updated since Milestone 2.** This section described a manual-only strategy. An
+> automated Vitest suite now covers the scoring, matching and coach-gating logic
+> (`npm test` — 45 tests across 9 files), and `npm run typecheck` runs `tsc --noEmit`
+> in strict mode. See the [Developer guide](#developer-guide-current-state) for the
+> current strategy and [`docs/TESTING.md`](docs/TESTING.md) for the latest
+> system-test and user-test results. The manual procedures below remain valid.
 
 ## 15.1 Static checks
 

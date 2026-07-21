@@ -7,7 +7,8 @@ import { buildTeamCoachPayload } from '@/services/ai/teamCoachPayload';
 import { getCoachAvailability } from '@/services/ai/coachAvailability';
 import { describeCoachError } from '@/services/ai/coachErrors';
 import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
-import { CompatibilityResult, Team } from '@/types/domain';
+import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
+import { CompatibilityResult, Team, TeamMember } from '@/types/domain';
 
 const palette = {
   surface: '#FFFFFF',
@@ -27,6 +28,7 @@ export function TeamDetails({
   compatibility,
   canGenerateCompatibility,
   insightsLoading,
+  insightsError = '',
   onGenerateInsights,
   onLeave
 }: {
@@ -34,6 +36,7 @@ export function TeamDetails({
   compatibility?: CompatibilityResult;
   canGenerateCompatibility: boolean;
   insightsLoading: boolean;
+  insightsError?: string;
   onGenerateInsights: () => void;
   onLeave: () => void;
 }) {
@@ -54,6 +57,7 @@ export function TeamDetails({
     hasFormation: Boolean(formationSuggestion)
   });
   const showFormationCard = completedProfileCount >= 4;
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   const [coachAdvice, setCoachAdvice] = useState<TeamCoachAdvice | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachError, setCoachError] = useState('');
@@ -113,22 +117,16 @@ export function TeamDetails({
 
       <View style={styles.divider} />
       <Text style={styles.memberHeading}>Members</Text>
+      <Text style={styles.memberHint}>Tap a member with a ready profile to see how they prefer to work.</Text>
       <View style={styles.memberList}>
         {team.members.map((member, index) => (
-          <View key={member.id} style={styles.memberItem}>
-            <View style={[styles.avatar, { backgroundColor: avatarColors[index % avatarColors.length] }]}>
-              <Text style={styles.avatarText}>{member.name.slice(0, 1).toUpperCase()}</Text>
-            </View>
-            <View style={styles.memberCopy}>
-              <Text numberOfLines={1} style={styles.memberName}>{member.name}</Text>
-              <Text numberOfLines={1} style={styles.memberRole}>{member.role || 'Member'}</Text>
-            </View>
-            <View style={[styles.profileStatus, member.result && styles.profileStatusComplete]}>
-              <Text style={[styles.profileStatusText, member.result && styles.profileStatusTextComplete]}>
-                {member.result ? 'Profile ready' : 'Profile pending'}
-              </Text>
-            </View>
-          </View>
+          <MemberRow
+            key={member.id}
+            member={member}
+            color={avatarColors[index % avatarColors.length]}
+            expanded={expandedMemberId === member.id}
+            onToggle={() => setExpandedMemberId((current) => (current === member.id ? null : member.id))}
+          />
         ))}
       </View>
 
@@ -182,6 +180,7 @@ export function TeamDetails({
             <InsightSection title="Next steps" items={compatibility.tips} />
           </View>
         ) : null}
+        {insightsError ? <Text style={styles.aiCoachError}>{insightsError}</Text> : null}
         {canGenerateCompatibility ? (
           <AppButton
             title={compatibility ? 'Refresh insights' : 'Generate insights'}
@@ -212,10 +211,83 @@ export function TeamDetails({
         onGenerate={() => void createCoachAdvice(Boolean(coachAdvice))}
       />
 
-      <Pressable onPress={onLeave} style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Leave ${team.name}`}
+        onPress={onLeave}
+        style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}
+      >
         <Ionicons name="exit-outline" size={18} color={palette.error} />
         <Text style={styles.leaveText}>Leave this team</Text>
       </Pressable>
+    </View>
+  );
+}
+
+// shows the hedged notes, not raw scores
+function MemberRow({
+  member,
+  color,
+  expanded,
+  onToggle
+}: {
+  member: TeamMember;
+  color: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const workstyle = useMemo(() => (member.result ? buildWorkstyleProfile(member.result) : null), [member.result]);
+  const initial = (member.name || 'Teammate').slice(0, 1).toUpperCase();
+
+  const row = (
+    <>
+      <View style={[styles.avatar, { backgroundColor: color }]}>
+        <Text style={styles.avatarText}>{initial}</Text>
+      </View>
+      <View style={styles.memberCopy}>
+        <Text numberOfLines={1} style={styles.memberName}>{member.name}</Text>
+        <Text numberOfLines={1} style={styles.memberRole}>{member.role || 'Member'}</Text>
+      </View>
+      <View style={[styles.profileStatus, member.result && styles.profileStatusComplete]}>
+        <Text style={[styles.profileStatusText, member.result && styles.profileStatusTextComplete]}>
+          {member.result ? 'Profile ready' : 'Profile pending'}
+        </Text>
+      </View>
+    </>
+  );
+
+  if (!workstyle) {
+    return <View style={styles.memberItem}>{row}</View>;
+  }
+
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${member.name}, profile ready. ${expanded ? 'Hide' : 'Show'} work-style notes`}
+        onPress={onToggle}
+        style={({ pressed }) => [styles.memberItem, pressed && styles.pressed]}
+      >
+        {row}
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color={palette.secondary}
+          style={styles.memberChevron}
+        />
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.memberDetail}>
+          <Text style={styles.memberDetailTendency}>{workstyle.primary.label}</Text>
+          <Text style={styles.memberDetailBody}>{workstyle.primary.description}</Text>
+          <InsightSection title="What to know when working together" items={workstyle.teammateNotes} />
+          <Text style={styles.memberDetailDisclaimer}>
+            Flexible work-style signals from {member.name.split(' ')[0]}&apos;s own answers — not a personality rating.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -456,9 +528,23 @@ const styles = StyleSheet.create({
   projectName: { color: palette.accentDark, fontSize: 14, fontWeight: '700', marginTop: 12 },
   description: { color: palette.secondary, fontSize: 14, lineHeight: 21, marginTop: 5 },
   divider: { height: 1, backgroundColor: palette.border, marginVertical: 17 },
-  memberHeading: { color: palette.text, fontSize: 15, fontWeight: '800', marginBottom: 11 },
+  memberHeading: { color: palette.text, fontSize: 15, fontWeight: '800' },
+  memberHint: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 3, marginBottom: 11 },
   memberList: { gap: 12 },
-  memberItem: { flexDirection: 'row', alignItems: 'center' },
+  memberItem: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  memberChevron: { marginLeft: 8 },
+  memberDetail: {
+    gap: 9,
+    borderRadius: 12,
+    backgroundColor: '#F8FCFA',
+    borderWidth: 1,
+    borderColor: '#E7EFEA',
+    padding: 12,
+    marginTop: 9
+  },
+  memberDetailTendency: { color: palette.accentDark, fontSize: 12, fontWeight: '900' },
+  memberDetailBody: { color: palette.secondary, fontSize: 12, lineHeight: 18 },
+  memberDetailDisclaimer: { color: palette.secondary, fontSize: 10, lineHeight: 15, fontStyle: 'italic' },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   avatarText: { color: '#17392F', fontSize: 13, fontWeight: '900' },
   memberCopy: { flex: 1, paddingRight: 8 },

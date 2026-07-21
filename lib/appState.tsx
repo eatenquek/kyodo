@@ -4,6 +4,7 @@ import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useSt
 import { questions } from '@/constants/questions';
 import { calculateTeamCompatibility } from '@/services/scoring/compatibilityScoring';
 import { scoreQuestionnaire } from '@/services/scoring/questionnaireScoring';
+import { resolveActiveTeam } from '@/services/teams/activeTeam';
 import {
   backendEnabled,
   createBackendTeam,
@@ -433,12 +434,10 @@ export function AppProvider({ children }: PropsWithChildren) {
         return userTeams();
       },
       getActiveTeam() {
-        const selected = state.teams.find((team) => team.id === state.activeTeamId);
-        if (selected?.members.some((member) => member.id === currentUserId)) return selected;
-        return userTeams()[0];
+        return resolveActiveTeam(state.teams, state.activeTeamId, currentUserId);
       },
       async generateCompatibility() {
-        const team = state.teams.find((item) => item.id === state.activeTeamId);
+        const team = resolveActiveTeam(state.teams, state.activeTeamId, currentUserId);
         if (!team) return null;
         const result = calculateTeamCompatibility(team);
         if (result) {

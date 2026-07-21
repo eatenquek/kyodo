@@ -2,41 +2,54 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ProgressBar } from '@/components/ui';
+import { questions } from '@/constants/questions';
 import { useAppState } from '@/lib/appState';
+import { getJourneyStatus, JourneyStatus } from '@/services/onboarding/journeyStatus';
+import { Team } from '@/types/domain';
 
-const previewMembers = [
-  { id: 'preview-1', name: 'A', color: '#EEA29B' },
-  { id: 'preview-2', name: 'J', color: '#F0C58B' },
-  { id: 'preview-3', name: 'M', color: '#ECA9A5' }
-];
+const avatarColors = ['#EEA29B', '#F0C58B', '#ECA9A5', '#B7DCCC', '#BFC9EC'];
 
 export default function HomeScreen() {
-  const { profile, teams } = useAppState();
-  const team = teams[0];
-  const memberCount = team?.members.length ?? 4;
-  const members = team
-    ? team.members.slice(0, 3).map((member, index) => ({
-        id: member.id,
-        name: member.name.slice(0, 1).toUpperCase(),
-        color: previewMembers[index]?.color ?? '#B7DCCC'
-      }))
-    : previewMembers;
+  const { answers, compatibility, getUserTeams, profile, result, user } = useAppState();
+  const teams = getUserTeams();
+  const answeredCount = questions.filter((question) => Boolean(answers[question.id])).length;
+
+  const journey = getJourneyStatus({
+    profile,
+    hasResult: Boolean(result),
+    answeredCount,
+    totalQuestionCount: questions.length,
+    teams,
+    userId: user?.id ?? 'local-user',
+    teamIdsWithInsights: Object.keys(compatibility)
+  });
 
   const goToTeams = () => router.push('/(tabs)/teams');
+  const goToProfile = () => router.push('/(tabs)/profile');
+  const goToQuestionnaire = () => router.push('/questionnaire');
+
+  const journeyActions: Record<JourneyStatus['stepId'], () => void> = {
+    profile: goToProfile,
+    questionnaire: goToQuestionnaire,
+    team: goToTeams,
+    teammates: goToTeams,
+    insights: goToTeams,
+    complete: goToTeams
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Text style={styles.pageTitle}>Home</Text>
-          <Pressable accessibilityLabel="Notifications" hitSlop={12} style={({ pressed }) => pressed && styles.pressed}>
-            <Ionicons name="notifications-outline" size={27} color="#1D2420" />
-          </Pressable>
         </View>
 
         <View style={styles.hero}>
           <View style={styles.welcomeCopy}>
-            <Text style={styles.eyebrow}>Welcome back{profile?.fullName ? `, ${profile.fullName.split(' ')[0]}` : ','}</Text>
+            <Text style={styles.eyebrow}>
+              {profile?.fullName ? `Welcome back, ${profile.fullName.split(' ')[0]}` : 'Welcome to'}
+            </Text>
             <Text style={styles.brandName}>
               Kyodo<Text style={styles.brandAccent}>AI</Text>
             </Text>
@@ -46,37 +59,30 @@ export default function HomeScreen() {
 
         <View style={styles.divider} />
 
+        <JourneyCard status={journey} onPress={journeyActions[journey.stepId]} />
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your Teams</Text>
-          <Pressable onPress={goToTeams} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
-            <Text style={styles.viewAll}>View all</Text>
-          </Pressable>
+          {teams.length ? (
+            <Pressable onPress={goToTeams} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
+              <Text style={styles.viewAll}>View all</Text>
+            </Pressable>
+          ) : null}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${team?.name ?? 'Project Gemini'}`}
-          onPress={goToTeams}
-          style={({ pressed }) => [styles.teamCard, pressed && styles.cardPressed]}
-        >
-          <View style={styles.teamBadge}>
-            <Ionicons name="people" size={25} color="#087453" />
-          </View>
-          <View style={styles.teamDetails}>
-            <Text numberOfLines={1} style={styles.teamName}>{team?.name ?? 'Project Gemini'}</Text>
-            <View style={styles.memberRow}>
-              <View style={styles.avatarStack}>
-                {members.map((member, index) => (
-                  <View key={member.id} style={[styles.avatar, { backgroundColor: member.color, marginLeft: index === 0 ? 0 : -5 }]}>
-                    <Text style={styles.avatarText}>{member.name}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.memberCount}>{memberCount} {memberCount === 1 ? 'member' : 'members'}</Text>
+        {teams.length ? (
+          teams.slice(0, 3).map((team) => <TeamSummaryCard key={team.id} team={team} onPress={goToTeams} />)
+        ) : (
+          <View style={styles.emptyTeamsCard}>
+            <View style={styles.emptyTeamsIcon}>
+              <Ionicons name="people-outline" size={26} color="#087453" />
             </View>
+            <Text style={styles.emptyTeamsTitle}>No teams yet</Text>
+            <Text style={styles.emptyTeamsBody}>
+              Create a team for your next project, or join one with a code from a peer.
+            </Text>
           </View>
-          <Ionicons name="chevron-forward" size={19} color="#A6AAA7" />
-        </Pressable>
+        )}
 
         <Pressable
           accessibilityRole="button"
@@ -94,6 +100,86 @@ export default function HomeScreen() {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function JourneyCard({ status, onPress }: { status: JourneyStatus; onPress: () => void }) {
+  const complete = status.stepId === 'complete';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${status.title}. ${status.description}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.journeyCard, pressed && styles.cardPressed]}
+    >
+      <View style={styles.journeyHeader}>
+        <View style={[styles.journeyIcon, complete && styles.journeyIconComplete]}>
+          <Ionicons
+            name={complete ? 'checkmark-circle' : 'flag-outline'}
+            size={20}
+            color={complete ? '#FFFFFF' : '#087453'}
+          />
+        </View>
+        <View style={styles.journeyCopy}>
+          <Text style={styles.journeyEyebrow}>{complete ? 'SETUP COMPLETE' : 'YOUR NEXT STEP'}</Text>
+          <Text style={styles.journeyTitle}>{status.title}</Text>
+        </View>
+        <Text style={styles.journeyProgress}>
+          {status.completedCount}/{status.totalCount}
+        </Text>
+      </View>
+
+      <ProgressBar value={status.completedCount} max={status.totalCount} />
+      <Text style={styles.journeyBody}>{status.description}</Text>
+
+      {status.actionLabel ? (
+        <View style={styles.journeyAction}>
+          <Text style={styles.journeyActionText}>{status.actionLabel}</Text>
+          <Ionicons name="arrow-forward" size={15} color="#087453" />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function TeamSummaryCard({ team, onPress }: { team: Team; onPress: () => void }) {
+  const memberCount = team.members.length;
+  const readyCount = team.members.filter((member) => member.result).length;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${team.name}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.teamCard, pressed && styles.cardPressed]}
+    >
+      <View style={styles.teamBadge}>
+        <Ionicons name="people" size={25} color="#087453" />
+      </View>
+      <View style={styles.teamDetails}>
+        <Text numberOfLines={1} style={styles.teamName}>{team.name}</Text>
+        <View style={styles.memberRow}>
+          <View style={styles.avatarStack}>
+            {team.members.slice(0, 3).map((member, index) => (
+              <View
+                key={member.id}
+                style={[
+                  styles.avatar,
+                  { backgroundColor: avatarColors[index % avatarColors.length], marginLeft: index === 0 ? 0 : -5 }
+                ]}
+              >
+                <Text style={styles.avatarText}>{member.name.slice(0, 1).toUpperCase()}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.memberCount}>
+            {memberCount} {memberCount === 1 ? 'member' : 'members'} · {readyCount} ready
+          </Text>
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={19} color="#A6AAA7" />
+    </Pressable>
   );
 }
 
@@ -120,6 +206,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 36
@@ -185,12 +274,104 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600'
   },
+  journeyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#E1E9E4',
+    padding: 16,
+    marginBottom: 20,
+    gap: 11
+  },
+  journeyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  journeyIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DDF2E9',
+    marginRight: 11
+  },
+  journeyIconComplete: {
+    backgroundColor: '#15906A'
+  },
+  journeyCopy: {
+    flex: 1,
+    paddingRight: 8
+  },
+  journeyEyebrow: {
+    color: '#15906A',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.1
+  },
+  journeyTitle: {
+    color: '#171C19',
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: 3
+  },
+  journeyProgress: {
+    color: '#5A635E',
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  journeyBody: {
+    color: '#5A635E',
+    fontSize: 13,
+    lineHeight: 19
+  },
+  journeyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  journeyActionText: {
+    color: '#087453',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+  emptyTeamsCard: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#E1E9E4',
+    paddingHorizontal: 22,
+    paddingVertical: 26
+  },
+  emptyTeamsIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DDF2E9',
+    marginBottom: 12
+  },
+  emptyTeamsTitle: {
+    color: '#242A26',
+    fontSize: 17,
+    fontWeight: '800'
+  },
+  emptyTeamsBody: {
+    color: '#555B57',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 6
+  },
   teamCard: {
     minHeight: 91,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 13,
+    marginBottom: 10,
     paddingHorizontal: 14,
     paddingVertical: 15,
     shadowColor: '#193C30',

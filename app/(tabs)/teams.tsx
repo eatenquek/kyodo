@@ -37,6 +37,7 @@ export default function TeamsScreen() {
   );
   const [formMode, setFormMode] = useState<TeamFormMode>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState('');
   const [teamToLeave, setTeamToLeave] = useState<Team | null>(null);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
@@ -69,7 +70,13 @@ export default function TeamsScreen() {
   async function createInsights() {
     try {
       setInsightsLoading(true);
-      await generateCompatibility();
+      setInsightsError('');
+      const result = await generateCompatibility();
+      if (!result) {
+        setInsightsError('Insights need at least two completed work-style profiles on this team.');
+      }
+    } catch (err) {
+      setInsightsError(err instanceof Error ? err.message : 'Could not generate insights. Try again.');
     } finally {
       setInsightsLoading(false);
     }
@@ -133,6 +140,7 @@ export default function TeamsScreen() {
                 compatibility={activeCompatibility}
                 canGenerateCompatibility={canGenerateCompatibility}
                 insightsLoading={insightsLoading}
+                insightsError={insightsError}
                 onGenerateInsights={() => void createInsights()}
                 onLeave={confirmLeaveTeam}
               />

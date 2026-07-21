@@ -81,7 +81,12 @@ export default function ProfileScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>About you</Text>
-          <Pressable onPress={() => setEditing(true)} hitSlop={8}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Edit your profile details"
+            onPress={() => setEditing(true)}
+            hitSlop={8}
+          >
             <Text style={styles.editText}>Edit</Text>
           </Pressable>
         </View>
