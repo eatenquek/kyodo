@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
+import { ConfirmModal, confirmModalStyles } from '@/components/ConfirmModal';
 import { LeaveTeamModal } from '@/components/teams/LeaveTeamModal';
 import { TeamDetails } from '@/components/teams/TeamDetails';
 import { TeamFormModal, TeamFormMode } from '@/components/teams/TeamFormModal';
@@ -27,7 +28,9 @@ export default function TeamsScreen() {
     getActiveTeam,
     getUserTeams,
     leaveTeam,
-    selectTeam
+    rotateJoinCode,
+    selectTeam,
+    user
   } = useAppState();
   const teams = getUserTeams();
   const activeTeam = getActiveTeam();
@@ -38,6 +41,9 @@ export default function TeamsScreen() {
   const [formMode, setFormMode] = useState<TeamFormMode>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState('');
+  const [rotating, setRotating] = useState(false);
+  const [rotateError, setRotateError] = useState('');
+  const [confirmRotate, setConfirmRotate] = useState(false);
   const [teamToLeave, setTeamToLeave] = useState<Team | null>(null);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
@@ -64,6 +70,22 @@ export default function TeamsScreen() {
       setLeaveError(err instanceof Error ? err.message : 'Could not leave this team.');
     } finally {
       setLeaveLoading(false);
+    }
+  }
+
+  async function submitRotateJoinCode() {
+    if (!activeTeam) return;
+
+    try {
+      setRotating(true);
+      setRotateError('');
+      await rotateJoinCode(activeTeam.id);
+      setConfirmRotate(false);
+    } catch (err) {
+      setRotateError(err instanceof Error ? err.message : 'Could not generate a new code.');
+      setConfirmRotate(false);
+    } finally {
+      setRotating(false);
     }
   }
 
@@ -141,6 +163,13 @@ export default function TeamsScreen() {
                 canGenerateCompatibility={canGenerateCompatibility}
                 insightsLoading={insightsLoading}
                 insightsError={insightsError}
+                canRotateJoinCode={Boolean(activeTeam.createdBy) && activeTeam.createdBy === user?.id}
+                rotating={rotating}
+                rotateError={rotateError}
+                onRotateJoinCode={() => {
+                  setRotateError('');
+                  setConfirmRotate(true);
+                }}
                 onGenerateInsights={() => void createInsights()}
                 onLeave={confirmLeaveTeam}
               />
@@ -157,6 +186,28 @@ export default function TeamsScreen() {
         )}
       </ScrollView>
       <TeamFormModal mode={formMode} onClose={() => setFormMode(null)} />
+      <ConfirmModal
+        visible={confirmRotate}
+        icon="refresh"
+        title="Generate a new code?"
+        body={
+          <>
+            The current code{' '}
+            <Text style={confirmModalStyles.code}>{activeTeam?.joinCode}</Text> will stop working straight away.
+            Anyone still joining will need the new one. Members already on the team are not affected.
+          </>
+        }
+        confirmLabel="New code"
+        loadingLabel="Working…"
+        tone="accent"
+        loading={rotating}
+        error=""
+        cancelAccessibilityLabel="Cancel generating a new join code"
+        onClose={() => {
+          if (!rotating) setConfirmRotate(false);
+        }}
+        onConfirm={() => void submitRotateJoinCode()}
+      />
       <LeaveTeamModal
         team={teamToLeave}
         loading={leaveLoading}

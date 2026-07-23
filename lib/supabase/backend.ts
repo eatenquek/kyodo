@@ -1,6 +1,13 @@
 import { calculateTeamCompatibility } from '@/services/scoring/compatibilityScoring';
 import { questionnaireVersion, questions } from '@/constants/questions';
-import { Answer, CompatibilityResult, PersonalityResult, Profile, Team } from '@/types/domain';
+import {
+  Answer,
+  CompatibilityResult,
+  CompatibilityRoleCoverage,
+  PersonalityResult,
+  Profile,
+  Team
+} from '@/types/domain';
 import { generateJoinCode } from '@/utils/generateJoinCode';
 import { isSupabaseConfigured, supabase } from './client';
 
@@ -55,7 +62,13 @@ type TeamRow = {
   project_name: string | null;
   description: string | null;
   join_code: string;
+  created_by: string | null;
+  join_code_updated_at: string | null;
 };
+
+const teamColumns = 'id,name,project_name,description,join_code,created_by,join_code_updated_at';
+
+type JoinByCodeRow = { team_id: string; already_member: boolean };
 
 type MemberRow = {
   team_id: string;
@@ -71,7 +84,38 @@ type CompatibilityRow = {
   frictions: string[];
   tips: string[];
   created_at: string;
+  pair_fit_score: number | null;
+  role_coverage_score: number | null;
+  coordinator_health_score: number | null;
+  suggested_coordinator: string | null;
+  role_coverage: CompatibilityRoleCoverage[] | null;
+  shared_responsibilities: string[] | null;
+  overlap_risks: string[] | null;
+  gaps: string[] | null;
 };
+
+const compatibilityColumns =
+  'team_id,score,score_label,strengths,frictions,tips,created_at,pair_fit_score,role_coverage_score,coordinator_health_score,suggested_coordinator,role_coverage,shared_responsibilities,overlap_risks,gaps';
+
+function mapCompatibility(row: CompatibilityRow): CompatibilityResult {
+  return {
+    teamId: row.team_id,
+    score: row.score,
+    scoreLabel: row.score_label,
+    strengths: row.strengths,
+    frictions: row.frictions,
+    tips: row.tips,
+    createdAt: row.created_at,
+    pairFitScore: row.pair_fit_score ?? undefined,
+    roleCoverageScore: row.role_coverage_score ?? undefined,
+    coordinatorHealthScore: row.coordinator_health_score ?? undefined,
+    suggestedCoordinator: row.suggested_coordinator ?? undefined,
+    roleCoverage: row.role_coverage ?? undefined,
+    sharedResponsibilities: row.shared_responsibilities ?? undefined,
+    overlapRisks: row.overlap_risks ?? undefined,
+    gaps: row.gaps ?? undefined
+  };
+}
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase is not configured.');
@@ -89,6 +133,16 @@ function throwBackendError(error: { message?: string }) {
     )
   ) {
     throw new Error(`${message}. Apply the latest Supabase migration before completing the new questionnaire.`);
+  }
+  if (
+    ['pair_fit_score', 'role_coverage_score', 'coordinator_health_score', 'suggested_coordinator', 'role_coverage'].some(
+      (column) => message.includes(column)
+    )
+  ) {
+    throw new Error(`${message}. Run 'supabase db push' to apply the compatibility report migration.`);
+  }
+  if (message.includes('join_code') && message.includes('row-level security')) {
+    throw new Error('Only the team owner can change the join code.');
   }
   throw new Error(message);
 }
@@ -196,11 +250,11 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
   }
 
   const [{ data: teamRows }, { data: allMemberRows }, { data: compatibilityRows }] = await Promise.all([
-    client.from('teams').select('id,name,project_name,description,join_code').in('id', teamIds).returns<TeamRow[]>(),
+    client.from('teams').select(teamColumns).in('id', teamIds).returns<TeamRow[]>(),
     client.from('team_members').select('team_id,user_id,role').in('team_id', teamIds).returns<MemberRow[]>(),
     client
       .from('compatibility_results')
-      .select('team_id,score,score_label,strengths,frictions,tips,created_at')
+      .select(compatibilityColumns)
       .in('team_id', teamIds)
       .order('created_at', { ascending: false })
       .returns<CompatibilityRow[]>()
@@ -233,6 +287,8 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
     projectName: team.project_name ?? undefined,
     description: team.description ?? undefined,
     joinCode: team.join_code,
+    createdBy: team.created_by ?? undefined,
+    joinCodeUpdatedAt: team.join_code_updated_at ?? undefined,
     members: (allMemberRows ?? [])
       .filter((member) => member.team_id === team.id)
       .map((member) => {
@@ -246,18 +302,11 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
       })
   }));
 
+  // Rows arrive newest-first, so the first row per team is the latest stored report.
   const compatibility: Record<string, CompatibilityResult> = {};
   for (const row of compatibilityRows ?? []) {
     if (compatibility[row.team_id]) continue;
-    compatibility[row.team_id] = {
-      teamId: row.team_id,
-      score: row.score,
-      scoreLabel: row.score_label,
-      strengths: row.strengths,
-      frictions: row.frictions,
-      tips: row.tips,
-      createdAt: row.created_at
-    };
+    compatibility[row.team_id] = mapCompatibility(row);
   }
 
   for (const team of teams) {
@@ -332,7 +381,7 @@ export async function createBackendTeam(userId: string, name: string, projectNam
         join_code: joinCode,
         created_by: userId
       })
-      .select('id,name,project_name,description,join_code')
+      .select(teamColumns)
       .single<TeamRow>();
 
     if (!error && data) {
@@ -354,29 +403,41 @@ export async function createBackendTeam(userId: string, name: string, projectNam
   return createdTeam.id;
 }
 
-export async function joinBackendTeam(userId: string, joinCode: string) {
+// joins via an rpc so the client never has to read the teams table directly
+export async function joinBackendTeam(_userId: string, joinCode: string) {
   const client = requireClient();
-  const { data: team, error: teamError } = await client
-    .from('teams')
-    .select('id')
-    .eq('join_code', joinCode.trim().toUpperCase())
-    .maybeSingle<{ id: string }>();
-
-  if (teamError) throwBackendError(teamError);
-  if (!team) return false;
-
-  const { error } = await client.from('team_members').insert({
-    team_id: team.id,
-    user_id: userId,
-    role: 'member'
-  });
+  const { data, error } = await client.rpc('join_team_by_code', { p_code: joinCode.trim().toUpperCase() });
 
   if (error) {
-    if (error.code === '23505') return false;
+    if (error.code === 'PGRST202' || error.message.includes('join_team_by_code')) {
+      throw new Error("Joining is not set up on the server yet. Run 'supabase db push' to apply the latest migration.");
+    }
     throwBackendError(error);
   }
 
-  return true;
+  const [match] = (data ?? []) as JoinByCodeRow[];
+  return Boolean(match) && !match.already_member;
+}
+
+// owner-only, retries a couple times if the new code happens to collide
+export async function rotateBackendJoinCode(teamId: string) {
+  const client = requireClient();
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const joinCode = generateJoinCode();
+    const { data, error } = await client
+      .from('teams')
+      .update({ join_code: joinCode, join_code_updated_at: new Date().toISOString() })
+      .eq('id', teamId)
+      .select('join_code')
+      .maybeSingle<{ join_code: string }>();
+
+    if (!error && data) return data.join_code;
+    if (error && error.code !== '23505') throwBackendError(error);
+    if (!error && !data) throw new Error('Only the team owner can change the join code.');
+  }
+
+  throw new Error('Could not generate a new team code. Try again.');
 }
 
 export async function leaveBackendTeam(userId: string, teamId: string) {
@@ -393,7 +454,15 @@ export async function saveBackendCompatibility(result: CompatibilityResult) {
     score_label: result.scoreLabel,
     strengths: result.strengths,
     frictions: result.frictions,
-    tips: result.tips
+    tips: result.tips,
+    pair_fit_score: result.pairFitScore ?? null,
+    role_coverage_score: result.roleCoverageScore ?? null,
+    coordinator_health_score: result.coordinatorHealthScore ?? null,
+    suggested_coordinator: result.suggestedCoordinator ?? null,
+    role_coverage: result.roleCoverage ?? [],
+    shared_responsibilities: result.sharedResponsibilities ?? [],
+    overlap_risks: result.overlapRisks ?? [],
+    gaps: result.gaps ?? []
   });
   if (error) throwBackendError(error);
 }

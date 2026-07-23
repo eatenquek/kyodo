@@ -11,6 +11,7 @@ import {
   joinBackendTeam,
   leaveBackendTeam,
   loadBackendSnapshot,
+  rotateBackendJoinCode,
   saveBackendAnswer,
   saveBackendCompatibility,
   saveBackendProfile,
@@ -46,6 +47,7 @@ type AppContextValue = State & {
   createTeam: (name: string, projectName: string, description: string) => Promise<Team>;
   joinTeam: (joinCode: string) => Promise<boolean>;
   leaveTeam: (teamId: string) => Promise<boolean>;
+  rotateJoinCode: (teamId: string) => Promise<string>;
   selectTeam: (teamId: string) => void;
   getUserTeams: () => Team[];
   getActiveTeam: () => Team | undefined;
@@ -141,11 +143,32 @@ function withoutLegacyFixtures(state: State): State {
   };
 }
 
+// makes sure the new local code isn't already used by another team
+function nextLocalJoinCode(teams: Team[], teamId: string) {
+  let joinCode = generateJoinCode();
+  while (teams.some((team) => team.id !== teamId && team.joinCode === joinCode)) {
+    joinCode = generateJoinCode();
+  }
+  return joinCode;
+}
+
+// local mode only keeps one profile slot, so drop anything that belongs to a
+// different account on sign-in (otherwise you'd see the last user's data)
 function applyLocalLogin(state: State, email: string): State {
   const normalizedEmail = email.toLowerCase();
   const user = { id: normalizedEmail, email };
   const activeTeam = state.teams.find((team) => team.members.some((member) => member.id === normalizedEmail));
-  return { ...state, user, activeTeamId: activeTeam?.id ?? state.activeTeamId };
+  const ownsProfile = state.profile?.id === normalizedEmail;
+  const ownsResult = state.result?.userId === normalizedEmail;
+
+  return {
+    ...state,
+    user,
+    profile: ownsProfile ? state.profile : null,
+    result: ownsResult ? state.result : null,
+    answers: ownsProfile || ownsResult ? state.answers : {},
+    activeTeamId: activeTeam?.id ?? state.activeTeamId
+  };
 }
 
 function isKnownAccount(state: State, email: string) {
@@ -354,6 +377,8 @@ export function AppProvider({ children }: PropsWithChildren) {
           projectName: projectName.trim(),
           description: description.trim(),
           joinCode,
+          createdBy: currentUserId,
+          joinCodeUpdatedAt: new Date().toISOString(),
           members: [currentMember()]
         };
         setState((current) => ({ ...current, teams: [...current.teams, team], activeTeamId: team.id }));
@@ -426,6 +451,24 @@ export function AppProvider({ children }: PropsWithChildren) {
           compatibility: Object.fromEntries(Object.entries(current.compatibility).filter(([id]) => id !== teamId))
         }));
         return true;
+      },
+      async rotateJoinCode(teamId) {
+        const team = state.teams.find((item) => item.id === teamId);
+        if (!team) throw new Error('That team could not be found.');
+        if (team.createdBy && team.createdBy !== currentUserId) {
+          throw new Error('Only the team owner can change the join code.');
+        }
+
+        const joinCode = backendEnabled
+          ? await rotateBackendJoinCode(teamId)
+          : nextLocalJoinCode(state.teams, teamId);
+        const joinCodeUpdatedAt = new Date().toISOString();
+
+        setState((current) => ({
+          ...current,
+          teams: current.teams.map((item) => (item.id === teamId ? { ...item, joinCode, joinCodeUpdatedAt } : item))
+        }));
+        return joinCode;
       },
       selectTeam(teamId) {
         setState((current) => ({ ...current, activeTeamId: teamId }));

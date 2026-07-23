@@ -64,6 +64,9 @@ export type Team = {
   projectName?: string;
   description?: string;
   joinCode: string;
+  /** Profile id of the team creator. Only the owner may rotate the join code. */
+  createdBy?: string;
+  joinCodeUpdatedAt?: string;
   members: TeamMember[];
 };
 

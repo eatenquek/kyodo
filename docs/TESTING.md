@@ -37,3 +37,19 @@ Ran through the app manually in local mode (`npm run web:local`, no backend) plu
   local mode
 - no component or e2e tests, just unit tests on the scoring/logic layer
 - AI coach success path not exercised (needs deployment + API key)
+
+**More checks (join code rotation + score display)**
+- `npm test` — 53 passing now, added tests for `scoreInterpretation` including one
+  that checks no score label ever calls a team "incompatible" or "toxic"
+- only the team owner sees the "new code" button, others don't
+- rotating gives a fresh code, old one stops working, new one joins fine
+- confirmation dialog before rotating explains what happens (old code dies,
+  current members unaffected)
+- compatibility scores now show as a band + range ("Workable · 59-73") instead of
+  a bare percentage
+- score explainer text is there and expands on tap
+
+**More bugs found + fixed**
+- local (no-backend) mode was leaking one account's profile into another
+  account when signing in as someone else on the same device — fixed
+- metric cards misaligned when a label wrapped to two lines

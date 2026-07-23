@@ -8,6 +8,7 @@ import { getCoachAvailability } from '@/services/ai/coachAvailability';
 import { describeCoachError } from '@/services/ai/coachErrors';
 import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
 import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
+import { describeScoreBand, scoreCaveat, scoreRange } from '@/services/scoring/scoreInterpretation';
 import { CompatibilityResult, Team, TeamMember } from '@/types/domain';
 
 const palette = {
@@ -29,6 +30,10 @@ export function TeamDetails({
   canGenerateCompatibility,
   insightsLoading,
   insightsError = '',
+  canRotateJoinCode = false,
+  rotating = false,
+  rotateError = '',
+  onRotateJoinCode,
   onGenerateInsights,
   onLeave
 }: {
@@ -37,6 +42,10 @@ export function TeamDetails({
   canGenerateCompatibility: boolean;
   insightsLoading: boolean;
   insightsError?: string;
+  canRotateJoinCode?: boolean;
+  rotating?: boolean;
+  rotateError?: string;
+  onRotateJoinCode?: () => void;
   onGenerateInsights: () => void;
   onLeave: () => void;
 }) {
@@ -106,11 +115,27 @@ export function TeamDetails({
           <Text style={styles.detailsEyebrow}>ACTIVE TEAM</Text>
           <Text style={styles.detailsTitle}>{team.name}</Text>
         </View>
-        <View style={styles.codePill}>
-          <Text style={styles.codeLabel}>CODE</Text>
-          <Text selectable style={styles.codeValue}>{team.joinCode}</Text>
+        <View style={styles.codeColumn}>
+          <View style={styles.codePill}>
+            <Text style={styles.codeLabel}>CODE</Text>
+            <Text selectable style={styles.codeValue}>{team.joinCode}</Text>
+          </View>
+          {canRotateJoinCode ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Generate a new join code, which stops the current one working"
+              disabled={rotating}
+              onPress={onRotateJoinCode}
+              style={({ pressed }) => [styles.rotateButton, pressed && styles.pressed]}
+            >
+              <Ionicons name="refresh" size={12} color={palette.accentDark} />
+              <Text style={styles.rotateText}>{rotating ? 'Working…' : 'New code'}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
+
+      {rotateError ? <Text style={styles.rotateError}>{rotateError}</Text> : null}
 
       {team.projectName ? <Text style={styles.projectName}>{team.projectName}</Text> : null}
       {team.description ? <Text style={styles.description}>{team.description}</Text> : null}
@@ -139,7 +164,7 @@ export function TeamDetails({
             <Text style={styles.insightTitle}>Compatibility insights</Text>
             <Text style={styles.insightBody}>
               {compatibility
-                ? `${compatibility.score}% · ${compatibility.scoreLabel}`
+                ? `${compatibility.scoreLabel} · around ${scoreRange(compatibility.score)}`
                 : canGenerateCompatibility
                   ? 'Your team profiles are ready to compare.'
                   : 'Available when at least two work-style profiles are ready.'}
@@ -154,6 +179,8 @@ export function TeamDetails({
               <Metric label="Coordination" value={compatibility.coordinatorHealthScore ?? compatibility.score} />
             </View>
 
+            <ScoreCaveat />
+
             {compatibility.suggestedCoordinator ? (
               <View style={styles.coordinatorCallout}>
                 <Ionicons name="flag-outline" size={15} color={palette.accentDark} />
@@ -167,7 +194,7 @@ export function TeamDetails({
                   <View key={role.id} style={styles.roleCard}>
                     <View style={styles.roleHeader}>
                       <Text style={styles.roleLabel}>{role.label}</Text>
-                      <Text style={styles.roleScore}>{role.score}%</Text>
+                      <Text style={styles.roleScore}>{describeScoreBand(role.score).label}</Text>
                     </View>
                     <Text style={styles.roleMembers} numberOfLines={2}>{role.members.join(', ')}</Text>
                   </View>
@@ -370,7 +397,7 @@ function FormationCard({
           <Text style={styles.formationTitle}>Best group split</Text>
           <Text style={styles.formationBody}>
             {suggestion
-              ? `${suggestion.overallScore}% · ${suggestion.scoreLabel} · target ${suggestion.groupSize} per team.`
+              ? `${suggestion.scoreLabel} · around ${scoreRange(suggestion.overallScore)} · target ${suggestion.groupSize} per team.`
               : formationUnavailableText(completedProfileCount, totalMemberCount, targetGroupSize)}
           </Text>
         </View>
@@ -417,7 +444,7 @@ function FormationCard({
                 <Text style={styles.suggestedGroupTitle}>
                   Team {index + 1} · {group.members.length}
                 </Text>
-                <Text style={styles.suggestedGroupScore}>{group.score}%</Text>
+                <Text style={styles.suggestedGroupScore}>{describeScoreBand(group.score).label}</Text>
               </View>
               <Text style={styles.suggestedGroupMembers}>{group.members.join(', ')}</Text>
               {group.suggestedCoordinator ? (
@@ -454,11 +481,36 @@ function getGroupSizeOptions(completedProfileCount: number) {
   return Array.from({ length: maxSize - 1 }, (_, index) => index + 2);
 }
 
+// band + range instead of a raw number
 function Metric({ label, value }: { label: string; value: number }) {
+  const band = describeScoreBand(value);
+
   return (
     <View style={styles.metricCard}>
-      <Text style={styles.metricValue}>{value}%</Text>
       <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricBand, band.id === 'watch' && styles.metricBandWatch]}>{band.label}</Text>
+      <Text style={styles.metricRange}>{scoreRange(value)}</Text>
+    </View>
+  );
+}
+
+function ScoreCaveat() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel="How to read these scores"
+        onPress={() => setOpen((current) => !current)}
+        style={({ pressed }) => [styles.caveatToggle, pressed && styles.pressed]}
+      >
+        <Ionicons name="information-circle-outline" size={14} color={palette.secondary} />
+        <Text style={styles.caveatToggleText}>How to read these scores</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={13} color={palette.secondary} />
+      </Pressable>
+      {open ? <Text style={styles.caveatBody}>{scoreCaveat}</Text> : null}
     </View>
   );
 }
@@ -516,6 +568,10 @@ const styles = StyleSheet.create({
   detailsTitleCopy: { flex: 1 },
   detailsEyebrow: { color: palette.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   detailsTitle: { color: palette.text, fontSize: 22, fontWeight: '900', marginTop: 4 },
+  codeColumn: { alignItems: 'flex-end', gap: 6 },
+  rotateButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 30, paddingHorizontal: 4 },
+  rotateText: { color: palette.accentDark, fontSize: 11, fontWeight: '800' },
+  rotateError: { color: palette.error, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 8 },
   codePill: {
     alignItems: 'center',
     backgroundColor: palette.accentSoft,
@@ -579,8 +635,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10
   },
-  metricValue: { color: palette.accentDark, fontSize: 17, fontWeight: '900' },
-  metricLabel: { color: palette.secondary, fontSize: 9, fontWeight: '800', marginTop: 2 },
+  // Fixed height keeps the band text aligned when a label wraps to two lines.
+  metricLabel: { color: palette.secondary, fontSize: 9, fontWeight: '800', lineHeight: 12, minHeight: 24 },
+  metricBand: { color: palette.accentDark, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  metricBandWatch: { color: '#8A6D1F' },
+  metricRange: { color: palette.secondary, fontSize: 10, fontWeight: '600', marginTop: 2 },
+  caveatToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32 },
+  caveatToggleText: { flex: 1, color: palette.secondary, fontSize: 11, fontWeight: '700' },
+  caveatBody: { color: palette.secondary, fontSize: 11, lineHeight: 17, marginTop: 2 },
   coordinatorCallout: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -54,7 +54,8 @@ self-reported work-style preferences, not a real measurement of anyone.
 - Tests: `npm test` / `npm run typecheck`
 
 **What's working:** auth, profile, questionnaire, scoring, teams, compatibility
-report, group split, the onboarding tracker on Home, teammate work-style notes.
+report (full record now, not just a summary), group split, the onboarding tracker
+on Home, teammate work-style notes, rotating a team's join code.
 
 **AI coach:** needs the edge function deployed and `OPENAI_API_KEY` set, otherwise
 it just shows an error instead of crashing.
@@ -62,18 +63,23 @@ it just shows an error instead of crashing.
 **Not built yet:** instructor/cohort mode, availability matching, push
 notifications, live/realtime updates.
 
+Compatibility scores now show as a band + range (e.g. "Workable · 59-73") instead
+of a bare percentage, since a 15-item questionnaire isn't precise enough to justify
+one.
+
 **Known gaps**
 - questionnaire is self-reported, not a validated instrument
 - group split search caps out above ~50k combinations, exact below that
-- local (no-backend) mode is single device, "auth" just checks a known email
-- join codes can't be rotated/revoked yet
+- local (no-backend) mode is single device, "auth" just checks a known email,
+  and only holds one profile at a time (switching accounts on the same device
+  wipes the previous one's local data)
 - no realtime — refresh to see teammate updates
 - no component/e2e tests, backend query layer only manually tested
+- a join code still works for anyone who has it until it's rotated
 
 **Todo**
-- persist the full compatibility record instead of recomputing it
-- rotate/revoke join codes
 - a11y roles on remaining buttons
+- per-account local storage (currently just one slot)
 - refetch team data when a screen comes back into focus
 - instructor/cohort mode for splitting a whole class into teams
 - availability as a matching input alongside work style
