@@ -6,7 +6,9 @@ export type Dimension =
   | 'conflict'
   | 'detail'
   | 'initiative'
-  | 'flexibility';
+  | 'flexibility'
+  | 'accountability'
+  | 'decisionComfort';
 
 export type Profile = {
   id: string;
@@ -31,18 +33,7 @@ export type Answer = {
   value: number;
 };
 
-export type WorkstyleScores = {
-  planning: number;
-  communication: number;
-  leadership: number;
-  pace: number;
-  conflict: number;
-  detail: number;
-  initiative: number;
-  flexibility: number;
-  accountability: number;
-  decisionComfort: number;
-};
+export type WorkstyleScores = Record<Dimension, number>;
 
 export type PersonalityResult = WorkstyleScores & {
   userId: string;

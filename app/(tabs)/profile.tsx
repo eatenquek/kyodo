@@ -10,24 +10,13 @@ import { useAppState } from '@/lib/appState';
 import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
 import { Dimension, WorkstyleScores } from '@/types/domain';
 
-const coreDimensions = Object.keys(dimensionLabels) as Dimension[];
-const scoreDetails: Array<{ key: keyof WorkstyleScores; label: string; description: string }> = [
-  ...coreDimensions.map((dimension) => ({
-    key: dimension,
-    label: dimensionLabels[dimension],
-    description: dimensionDescriptions[dimension]
-  })),
-  {
-    key: 'accountability',
-    label: 'Accountability',
-    description: 'How strongly you signal dependable follow-through on commitments.'
-  },
-  {
-    key: 'decisionComfort',
-    label: 'Decision Comfort',
-    description: 'How comfortable you are helping the team move when a decision is needed.'
-  }
-];
+const scoreDetails: Array<{ key: keyof WorkstyleScores; label: string; description: string }> = (
+  Object.keys(dimensionLabels) as Dimension[]
+).map((dimension) => ({
+  key: dimension,
+  label: dimensionLabels[dimension],
+  description: dimensionDescriptions[dimension]
+}));
 
 export default function ProfileScreen() {
   const { answers, profile, result, signOut, user } = useAppState();

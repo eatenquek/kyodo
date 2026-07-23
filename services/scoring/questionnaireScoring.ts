@@ -4,6 +4,17 @@ import { buildWorkstyleProfile } from './workstyleProfile';
 
 const questionById = new Map(questions.map((question) => [question.id, question]));
 
+const itemsByDimension = questions.reduce<Record<Dimension, string[]>>((grouped, question) => {
+  (grouped[question.dimension] ??= []).push(question.id);
+  return grouped;
+}, {} as Record<Dimension, string[]>);
+
+export function getDimensionCoverage() {
+  return Object.fromEntries(
+    Object.entries(itemsByDimension).map(([dimension, ids]) => [dimension, ids.length])
+  ) as Record<Dimension, number>;
+}
+
 export function normalizeAnswer(value: number, reverse: boolean) {
   if (!Number.isInteger(value) || value < 1 || value > 5) {
     throw new Error('Questionnaire answers must be whole numbers from 1 to 5.');
@@ -30,19 +41,10 @@ export function scoreQuestionnaire(userId: string, answers: Answer[]): Personali
     return Math.round(questionIds.reduce((sum, questionId) => sum + itemScore(questionId), 0) / questionIds.length);
   }
 
-  const coreScores: Record<Dimension, number> = {
-    communication: meanScore(['kyodo15_q03', 'kyodo15_q04', 'kyodo15_q15']),
-    planning: meanScore(['kyodo15_q01', 'kyodo15_q02']),
-    leadership: meanScore(['kyodo15_q07', 'kyodo15_q08']),
-    pace: meanScore(['kyodo15_q06', 'kyodo15_q09']),
-    conflict: meanScore(['kyodo15_q13', 'kyodo15_q14']),
-    detail: meanScore(['kyodo15_q11', 'kyodo15_q12']),
-    initiative: itemScore('kyodo15_q05'),
-    flexibility: itemScore('kyodo15_q10')
-  };
-  const accountability = itemScore('kyodo15_q06');
-  const decisionComfort = itemScore('kyodo15_q07');
-  const scores: WorkstyleScores = { ...coreScores, accountability, decisionComfort };
+  // each dimension is just the mean of its own items now, nothing aliased
+  const scores: WorkstyleScores = Object.fromEntries(
+    Object.entries(itemsByDimension).map(([dimension, questionIds]) => [dimension, meanScore(questionIds)])
+  ) as WorkstyleScores;
   const profile = buildWorkstyleProfile(scores);
   return {
     userId,

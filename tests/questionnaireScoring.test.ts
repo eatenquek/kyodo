@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeAnswer, scoreQuestionnaire } from '@/services/scoring/questionnaireScoring';
+import { getDimensionCoverage, normalizeAnswer, scoreQuestionnaire } from '@/services/scoring/questionnaireScoring';
+import { dimensionLabels, questions } from '@/constants/questions';
+import { WorkstyleScores } from '@/types/domain';
 import { allNeutralAnswers } from './fixtures';
 
 describe('normalizeAnswer', () => {
@@ -35,5 +37,41 @@ describe('scoreQuestionnaire', () => {
 
   it('throws when answers are missing', () => {
     expect(() => scoreQuestionnaire('user-1', [])).toThrow();
+  });
+});
+
+describe('questionnaire instrument integrity', () => {
+  it('backs every dimension with at least two of its own items', () => {
+    const coverage = getDimensionCoverage();
+    for (const [dimension, count] of Object.entries(coverage)) {
+      expect(count, `${dimension} needs >= 2 items, has ${count}`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('never lets one item feed more than one dimension', () => {
+    const seen = new Map<string, string>();
+    for (const question of questions) {
+      expect(seen.has(question.id), `${question.id} is used twice`).toBe(false);
+      seen.set(question.id, question.dimension);
+    }
+    expect(seen.size).toBe(questions.length);
+  });
+
+  it('covers every scored dimension with questions', () => {
+    const scored = Object.keys(scoreQuestionnaire('user-1', allNeutralAnswers())).filter(
+      (key) => !['userId', 'resultLabel', 'summaryText', 'createdAt'].includes(key)
+    ) as Array<keyof WorkstyleScores>;
+    const covered = Object.keys(getDimensionCoverage());
+    for (const dimension of scored) {
+      expect(covered, `${dimension} is scored but has no items`).toContain(dimension);
+    }
+    // Every dimension is also labelled for the UI.
+    for (const dimension of covered) {
+      expect(dimensionLabels[dimension as keyof typeof dimensionLabels]).toBeTruthy();
+    }
+  });
+
+  it('balances agreement bias with reverse-scored items', () => {
+    expect(questions.filter((question) => question.reverse).length).toBeGreaterThanOrEqual(4);
   });
 });

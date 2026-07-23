@@ -1,3 +1,4 @@
+import { questions } from '@/constants/questions';
 import { Profile, Team } from '@/types/domain';
 
 export type JourneyStepId = 'profile' | 'questionnaire' | 'team' | 'teammates' | 'insights' | 'complete';
@@ -18,7 +19,7 @@ export function getJourneyStatus({
   profile,
   hasResult,
   answeredCount,
-  totalQuestionCount = 15,
+  totalQuestionCount = questions.length,
   teams,
   userId,
   teamIdsWithInsights = []
