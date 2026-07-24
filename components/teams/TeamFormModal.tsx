@@ -12,6 +12,7 @@ import {
 import { AppButton, AppTextInput } from '@/components/ui';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
+import { parseInviteInput } from '@/services/teams/inviteLink';
 
 export type TeamFormMode = 'create' | 'join' | null;
 
@@ -77,8 +78,10 @@ export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: 
     }
   }
 
+  // handles a pasted link or a typed code
   function updateJoinCode(value: string) {
-    setJoinCode(value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+    const fromLink = parseInviteInput(value);
+    setJoinCode(fromLink ?? value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6));
     setError('');
   }
 
@@ -127,9 +130,8 @@ export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: 
                 onChangeText={updateJoinCode}
                 autoCapitalize="characters"
                 autoCorrect={false}
-                maxLength={6}
               />
-              <Text style={styles.joinHelp}>Ask a teammate to share the code shown on their team page.</Text>
+              <Text style={styles.joinHelp}>Paste the invite link a teammate sent you, or type the 6-character code.</Text>
             </View>
           )}
 

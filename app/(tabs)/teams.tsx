@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
@@ -28,6 +29,7 @@ export default function TeamsScreen() {
     getActiveTeam,
     getUserTeams,
     leaveTeam,
+    refresh,
     rotateJoinCode,
     selectTeam,
     user
@@ -47,6 +49,13 @@ export default function TeamsScreen() {
   const [teamToLeave, setTeamToLeave] = useState<Team | null>(null);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
+
+  // refetch on focus so a teammate's finished profile shows up without a manual reload
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
 
   function confirmLeaveTeam() {
     if (!activeTeam) return;

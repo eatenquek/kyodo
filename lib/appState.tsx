@@ -18,6 +18,7 @@ import {
   saveBackendResult
 } from '@/lib/supabase/backend';
 import { supabase } from '@/lib/supabase/client';
+import { takePendingInvite } from '@/lib/pendingInvite';
 import { Answer, CompatibilityResult, PersonalityResult, Profile, Team } from '@/types/domain';
 import { generateJoinCode } from '@/utils/generateJoinCode';
 
@@ -49,6 +50,7 @@ type AppContextValue = State & {
   leaveTeam: (teamId: string) => Promise<boolean>;
   rotateJoinCode: (teamId: string) => Promise<string>;
   selectTeam: (teamId: string) => void;
+  refresh: () => Promise<void>; // re-reads server state, no-op without a backend
   getUserTeams: () => Team[];
   getActiveTeam: () => Team | undefined;
   generateCompatibility: () => Promise<CompatibilityResult | null>;
@@ -473,6 +475,21 @@ export function AppProvider({ children }: PropsWithChildren) {
       selectTeam(teamId) {
         setState((current) => ({ ...current, activeTeamId: teamId }));
       },
+      async refresh() {
+        if (!backendEnabled || !state.user) return;
+        const snapshot = await loadBackendSnapshot(state.user.id, state.user.email);
+        setState((current) => ({
+          ...current,
+          profile: snapshot.profile,
+          answers: snapshot.answers,
+          result: snapshot.result,
+          teams: snapshot.teams,
+          activeTeamId: snapshot.teams.some((team) => team.id === current.activeTeamId)
+            ? current.activeTeamId
+            : snapshot.activeTeamId,
+          compatibility: snapshot.compatibility
+        }));
+      },
       getUserTeams() {
         return userTeams();
       },
@@ -491,6 +508,29 @@ export function AppProvider({ children }: PropsWithChildren) {
       }
     };
   }, [state]);
+
+  // redeem a parked invite code once the user signs in
+  const userId = state.user?.id;
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    let cancelled = false;
+
+    (async () => {
+      const code = await takePendingInvite();
+      if (!code || cancelled) return;
+      try {
+        const joined = await value.joinTeam(code);
+        if (!cancelled && joined) router.replace('/(tabs)/teams');
+      } catch {
+        // failed join just shows up on the teams screen, doesn't block startup
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, userId]);
 
   if (!hydrated) return null;
 

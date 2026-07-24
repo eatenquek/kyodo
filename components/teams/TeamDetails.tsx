@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui';
 import { generateTeamCoachAdvice, TeamCoachAdvice } from '@/services/ai/teamCoach';
 import { buildTeamCoachPayload } from '@/services/ai/teamCoachPayload';
@@ -8,6 +9,7 @@ import { getCoachAvailability } from '@/services/ai/coachAvailability';
 import { describeCoachError } from '@/services/ai/coachErrors';
 import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
 import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
+import { buildInvitePath } from '@/services/teams/inviteLink';
 import { describeScoreBand, scoreCaveat, scoreRange } from '@/services/scoring/scoreInterpretation';
 import { CompatibilityResult, Team, TeamMember } from '@/types/domain';
 
@@ -67,6 +69,25 @@ export function TeamDetails({
   });
   const showFormationCard = completedProfileCount >= 4;
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [inviteNotice, setInviteNotice] = useState('');
+
+  // copies to clipboard on web (no share sheet everywhere), uses native share otherwise
+  async function shareInvite() {
+    const url = Linking.createURL(buildInvitePath(team.joinCode));
+    const message = `Join "${team.name}" on KyodoAI: ${url}`;
+
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(message);
+        setInviteNotice('Invite link copied to your clipboard.');
+        return;
+      }
+      await Share.share({ message });
+      setInviteNotice('');
+    } catch {
+      setInviteNotice(`Share this link: ${url}`);
+    }
+  }
   const [coachAdvice, setCoachAdvice] = useState<TeamCoachAdvice | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachError, setCoachError] = useState('');
@@ -134,6 +155,17 @@ export function TeamDetails({
           ) : null}
         </View>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Share an invite link for ${team.name}`}
+        onPress={() => void shareInvite()}
+        style={({ pressed }) => [styles.inviteButton, pressed && styles.pressed]}
+      >
+        <Ionicons name="person-add-outline" size={15} color="#FFFFFF" />
+        <Text style={styles.inviteText}>Invite teammates</Text>
+      </Pressable>
+      {inviteNotice ? <Text style={styles.inviteNotice}>{inviteNotice}</Text> : null}
 
       {rotateError ? <Text style={styles.rotateError}>{rotateError}</Text> : null}
 
@@ -569,6 +601,18 @@ const styles = StyleSheet.create({
   detailsEyebrow: { color: palette.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   detailsTitle: { color: palette.text, fontSize: 22, fontWeight: '900', marginTop: 4 },
   codeColumn: { alignItems: 'flex-end', gap: 6 },
+  inviteButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 99,
+    backgroundColor: palette.accent,
+    marginTop: 14
+  },
+  inviteText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  inviteNotice: { color: palette.accentDark, fontSize: 11, lineHeight: 16, marginTop: 8, textAlign: 'center' },
   rotateButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 30, paddingHorizontal: 4 },
   rotateText: { color: palette.accentDark, fontSize: 11, fontWeight: '800' },
   rotateError: { color: palette.error, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 8 },
