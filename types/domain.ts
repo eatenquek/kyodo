@@ -72,6 +72,21 @@ export type Team = {
   members: TeamMember[];
 };
 
+// a pool of students an organiser splits into teams (a class/tutorial group)
+export type Cohort = {
+  id: string;
+  name: string;
+  description?: string;
+  joinCode: string;
+  createdBy?: string;
+  targetGroupSize: number;
+  isOrganiser: boolean; // true when the signed-in user runs this cohort
+  memberCount: number;
+  createdAt?: string;
+};
+
+export type CohortMember = TeamMember;
+
 export type CompatibilityRoleCoverage = {
   id: 'coordinator' | 'builder' | 'quality' | 'connector';
   label: string;

@@ -3,6 +3,8 @@ import { questionnaireVersion, questions } from '@/constants/questions';
 import {
   Answer,
   AvailabilityBlock,
+  Cohort,
+  CohortMember,
   CompatibilityResult,
   CompatibilityRoleCoverage,
   PersonalityResult,
@@ -306,7 +308,7 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
       })
   }));
 
-  // Rows arrive newest-first, so the first row per team is the latest stored report.
+  // newest-first, so the first row per team is the latest report
   const compatibility: Record<string, CompatibilityResult> = {};
   for (const row of compatibilityRows ?? []) {
     if (compatibility[row.team_id]) continue;
@@ -474,4 +476,173 @@ export async function saveBackendCompatibility(result: CompatibilityResult) {
 
 export function calculateCompatibilityForTeam(team: Team) {
   return calculateTeamCompatibility(team);
+}
+
+// ---------------------------------------------------------------------------
+// Cohorts
+// ---------------------------------------------------------------------------
+
+type CohortRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  join_code: string;
+  created_by: string;
+  target_group_size: number;
+  created_at: string;
+};
+
+const cohortColumns = 'id,name,description,join_code,created_by,target_group_size,created_at';
+
+export async function loadBackendCohorts(userId: string): Promise<Cohort[]> {
+  const client = requireClient();
+
+  const { data: membershipRows, error } = await client
+    .from('cohort_members')
+    .select('cohort_id')
+    .eq('user_id', userId)
+    .returns<Array<{ cohort_id: string }>>();
+  if (error) throwBackendError(error);
+
+  const ids = [...new Set((membershipRows ?? []).map((row) => row.cohort_id))];
+
+  // include cohorts the user created, even before the membership row lands
+  const { data: cohortRows } = await client
+    .from('cohorts')
+    .select(cohortColumns)
+    .or(ids.length ? `created_by.eq.${userId},id.in.(${ids.join(',')})` : `created_by.eq.${userId}`)
+    .order('created_at', { ascending: false })
+    .returns<CohortRow[]>();
+
+  const cohortIds = (cohortRows ?? []).map((row) => row.id);
+  const counts = new Map<string, number>();
+  if (cohortIds.length) {
+    const { data: allMembers } = await client
+      .from('cohort_members')
+      .select('cohort_id')
+      .in('cohort_id', cohortIds)
+      .returns<Array<{ cohort_id: string }>>();
+    for (const row of allMembers ?? []) {
+      counts.set(row.cohort_id, (counts.get(row.cohort_id) ?? 0) + 1);
+    }
+  }
+
+  return (cohortRows ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    joinCode: row.join_code,
+    createdBy: row.created_by,
+    targetGroupSize: row.target_group_size,
+    isOrganiser: row.created_by === userId,
+    memberCount: counts.get(row.id) ?? 0,
+    createdAt: row.created_at
+  }));
+}
+
+// roster with each student's profile + latest result, for the split
+export async function loadBackendCohortRoster(cohortId: string): Promise<CohortMember[]> {
+  const client = requireClient();
+
+  const { data: memberRows, error } = await client
+    .from('cohort_members')
+    .select('user_id,role')
+    .eq('cohort_id', cohortId)
+    .returns<Array<{ user_id: string; role: string }>>();
+  if (error) throwBackendError(error);
+
+  const userIds = [...new Set((memberRows ?? []).map((row) => row.user_id))];
+  if (!userIds.length) return [];
+
+  const [{ data: profileRows }, { data: resultRows }] = await Promise.all([
+    client.from('profiles').select('*').in('id', userIds).returns<ProfileRow[]>(),
+    client
+      .from('personality_results')
+      .select('*')
+      .in('user_id', userIds)
+      .order('created_at', { ascending: false })
+      .returns<ResultRow[]>()
+  ]);
+
+  const profiles = new Map((profileRows ?? []).map((row) => [row.id, mapProfile(row)]));
+  const latestResults = new Map<string, PersonalityResult>();
+  for (const row of resultRows ?? []) {
+    if (isCurrentResult(row) && !latestResults.has(row.user_id)) latestResults.set(row.user_id, mapResult(row));
+  }
+
+  return (memberRows ?? []).map((row) => {
+    const profile = profiles.get(row.user_id);
+    return {
+      id: row.user_id,
+      name: profile?.fullName ?? 'Student',
+      role: profile?.preferredRole ?? row.role,
+      result: latestResults.get(row.user_id),
+      availability: profile?.availability
+    };
+  });
+}
+
+export async function createBackendCohort(userId: string, name: string, description: string, targetGroupSize: number) {
+  const client = requireClient();
+  let joinCode = generateJoinCode();
+  let created: CohortRow | null = null;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await client
+      .from('cohorts')
+      .insert({
+        name: name.trim(),
+        description: description.trim() || null,
+        join_code: joinCode,
+        created_by: userId,
+        target_group_size: targetGroupSize
+      })
+      .select(cohortColumns)
+      .single<CohortRow>();
+
+    if (!error && data) {
+      created = data;
+      break;
+    }
+    joinCode = generateJoinCode();
+  }
+
+  if (!created) throw new Error('Could not create a unique cohort code.');
+
+  const { error: memberError } = await client
+    .from('cohort_members')
+    .insert({ cohort_id: created.id, user_id: userId, role: 'organiser' });
+  if (memberError) throwBackendError(memberError);
+
+  return created.id;
+}
+
+// same rpc pattern as joinBackendTeam so cohort codes stay private
+export async function joinBackendCohort(joinCode: string) {
+  const client = requireClient();
+  const { data, error } = await client.rpc('join_cohort_by_code', { p_code: joinCode.trim().toUpperCase() });
+
+  if (error) {
+    if (error.code === 'PGRST202' || error.message.includes('join_cohort_by_code')) {
+      throw new Error("Cohorts are not set up on the server yet. Run 'supabase db push' to apply the latest migration.");
+    }
+    throwBackendError(error);
+  }
+
+  const [match] = (data ?? []) as Array<{ cohort_id: string; already_member: boolean }>;
+  return Boolean(match) && !match.already_member;
+}
+
+export async function updateBackendCohortTargetSize(cohortId: string, targetGroupSize: number) {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('cohorts')
+    .update({ target_group_size: targetGroupSize })
+    .eq('id', cohortId)
+    .select('target_group_size')
+    .maybeSingle<{ target_group_size: number }>();
+
+  if (error) throwBackendError(error);
+  if (!data) throw new Error('Only the cohort organiser can change the target group size.');
+  return data.target_group_size;
 }

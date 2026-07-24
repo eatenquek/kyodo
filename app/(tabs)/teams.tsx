@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
@@ -50,11 +50,15 @@ export default function TeamsScreen() {
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
 
-  // refetch on focus so a teammate's finished profile shows up without a manual reload
+  // refetch on focus so a teammate's finished profile shows up without a reload.
+  // kept in a ref because refresh changes identity every render and would loop
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
   useFocusEffect(
     useCallback(() => {
-      void refresh();
-    }, [refresh])
+      void refreshRef.current();
+    }, [])
   );
 
   function confirmLeaveTeam() {

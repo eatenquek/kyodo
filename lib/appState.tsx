@@ -7,7 +7,12 @@ import { scoreQuestionnaire } from '@/services/scoring/questionnaireScoring';
 import { resolveActiveTeam } from '@/services/teams/activeTeam';
 import {
   backendEnabled,
+  createBackendCohort,
   createBackendTeam,
+  joinBackendCohort,
+  loadBackendCohortRoster,
+  loadBackendCohorts,
+  updateBackendCohortTargetSize,
   joinBackendTeam,
   leaveBackendTeam,
   loadBackendSnapshot,
@@ -19,7 +24,7 @@ import {
 } from '@/lib/supabase/backend';
 import { supabase } from '@/lib/supabase/client';
 import { takePendingInvite } from '@/lib/pendingInvite';
-import { Answer, CompatibilityResult, PersonalityResult, Profile, Team } from '@/types/domain';
+import { Answer, Cohort, CohortMember, CompatibilityResult, PersonalityResult, Profile, Team } from '@/types/domain';
 import { generateJoinCode } from '@/utils/generateJoinCode';
 
 type AppUser = { id: string; email: string };
@@ -49,6 +54,12 @@ type AppContextValue = State & {
   joinTeam: (joinCode: string) => Promise<boolean>;
   leaveTeam: (teamId: string) => Promise<boolean>;
   rotateJoinCode: (teamId: string) => Promise<string>;
+  cohorts: Cohort[];
+  loadCohorts: () => Promise<void>;
+  createCohort: (name: string, description: string, targetGroupSize: number) => Promise<void>;
+  joinCohort: (joinCode: string) => Promise<boolean>;
+  loadCohortRoster: (cohortId: string) => Promise<CohortMember[]>;
+  setCohortTargetSize: (cohortId: string, size: number) => Promise<void>;
   selectTeam: (teamId: string) => void;
   refresh: () => Promise<void>; // re-reads server state, no-op without a backend
   getUserTeams: () => Team[];
@@ -180,6 +191,7 @@ function isKnownAccount(state: State, email: string) {
 
 export function AppProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<State>(initialState);
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -229,6 +241,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
     return {
       ...state,
+      cohorts,
       async signIn(email, password) {
         const normalizedEmail = email.trim().toLowerCase();
         if (backendEnabled && supabase) {
@@ -460,6 +473,35 @@ export function AppProvider({ children }: PropsWithChildren) {
         }));
         return true;
       },
+      async loadCohorts() {
+        if (!backendEnabled || !state.user) return;
+        const cohorts = await loadBackendCohorts(state.user.id);
+        setCohorts(cohorts);
+      },
+      async createCohort(name, description, targetGroupSize) {
+        if (!backendEnabled || !state.user) {
+          throw new Error('Cohorts need the Supabase backend. Add your project config to use them.');
+        }
+        await createBackendCohort(state.user.id, name, description, targetGroupSize);
+        setCohorts(await loadBackendCohorts(state.user.id));
+      },
+      async joinCohort(joinCode) {
+        if (!backendEnabled || !state.user) {
+          throw new Error('Cohorts need the Supabase backend. Add your project config to use them.');
+        }
+        const joined = await joinBackendCohort(joinCode);
+        setCohorts(await loadBackendCohorts(state.user.id));
+        return joined;
+      },
+      async loadCohortRoster(cohortId) {
+        if (!backendEnabled) return [];
+        return loadBackendCohortRoster(cohortId);
+      },
+      async setCohortTargetSize(cohortId, size) {
+        if (!backendEnabled || !state.user) return;
+        await updateBackendCohortTargetSize(cohortId, size);
+        setCohorts(await loadBackendCohorts(state.user.id));
+      },
       async rotateJoinCode(teamId) {
         const team = state.teams.find((item) => item.id === teamId);
         if (!team) throw new Error('That team could not be found.');
@@ -513,7 +555,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         return result;
       }
     };
-  }, [state]);
+  }, [state, cohorts]);
 
   // redeem a parked invite code once the user signs in
   const userId = state.user?.id;
