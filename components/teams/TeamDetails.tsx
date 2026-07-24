@@ -10,6 +10,7 @@ import { describeCoachError } from '@/services/ai/coachErrors';
 import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
 import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
 import { buildInvitePath } from '@/services/teams/inviteLink';
+import { AvailabilityOverlap, calculateAvailabilityOverlap } from '@/services/scoring/availability';
 import { describeScoreBand, scoreCaveat, scoreRange } from '@/services/scoring/scoreInterpretation';
 import { CompatibilityResult, Team, TeamMember } from '@/types/domain';
 
@@ -70,6 +71,7 @@ export function TeamDetails({
   const showFormationCard = completedProfileCount >= 4;
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   const [inviteNotice, setInviteNotice] = useState('');
+  const availabilityOverlap = useMemo(() => calculateAvailabilityOverlap(team.members), [team.members]);
 
   // copies to clipboard on web (no share sheet everywhere), uses native share otherwise
   async function shareInvite() {
@@ -186,6 +188,8 @@ export function TeamDetails({
           />
         ))}
       </View>
+
+      <AvailabilityCard overlap={availabilityOverlap} memberCount={team.members.length} />
 
       <View style={styles.insightCard}>
         <View style={styles.insightHeader}>
@@ -345,6 +349,47 @@ function MemberRow({
           <Text style={styles.memberDetailDisclaimer}>
             Flexible work-style signals from {member.name.split(' ')[0]}&apos;s own answers — not a personality rating.
           </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// shown above the work-style report - no shared hour matters more than fit
+function AvailabilityCard({
+  overlap,
+  memberCount
+}: {
+  overlap: AvailabilityOverlap | null;
+  memberCount: number;
+}) {
+  const noOverlap = overlap ? overlap.sharedBlocks.length === 0 : false;
+
+  return (
+    <View style={[styles.availabilityCard, noOverlap && styles.availabilityCardWarn]}>
+      <View style={styles.insightHeader}>
+        <View style={[styles.insightIcon, noOverlap && styles.availabilityIconWarn]}>
+          <Ionicons name="calendar-outline" size={18} color={noOverlap ? '#8A6D1F' : palette.accentDark} />
+        </View>
+        <View style={styles.insightCopy}>
+          <Text style={styles.insightTitle}>Shared availability</Text>
+          <Text style={styles.insightBody}>
+            {overlap
+              ? overlap.summary
+              : memberCount < 2
+                ? 'Available once a teammate joins and adds when they are free.'
+                : 'Add when you are free on your profile, and ask teammates to do the same.'}
+          </Text>
+        </View>
+      </View>
+
+      {overlap?.sharedLabels.length ? (
+        <View style={styles.slotRow}>
+          {overlap.sharedLabels.map((label) => (
+            <View key={label} style={styles.slotChip}>
+              <Text style={styles.slotChipText}>{label}</Text>
+            </View>
+          ))}
         </View>
       ) : null}
     </View>
@@ -654,6 +699,12 @@ const styles = StyleSheet.create({
   profileStatusComplete: { backgroundColor: palette.accentSoft },
   profileStatusText: { color: '#777F7A', fontSize: 9, fontWeight: '700' },
   profileStatusTextComplete: { color: palette.accentDark },
+  availabilityCard: { backgroundColor: '#F5FAF7', borderRadius: 13, padding: 14, marginTop: 20, gap: 10 },
+  availabilityCardWarn: { backgroundColor: '#FFF8E6' },
+  availabilityIconWarn: { backgroundColor: '#FBEFCF' },
+  slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  slotChip: { borderRadius: 99, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: palette.border, paddingHorizontal: 10, paddingVertical: 6 },
+  slotChipText: { color: palette.accentDark, fontSize: 11, fontWeight: '800' },
   insightCard: { backgroundColor: '#F5FAF7', borderRadius: 13, padding: 14, marginTop: 20, gap: 12 },
   insightHeader: { flexDirection: 'row', alignItems: 'center' },
   insightIcon: {

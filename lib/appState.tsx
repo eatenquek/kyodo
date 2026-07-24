@@ -222,7 +222,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       id: currentUserId,
       name: state.profile?.fullName || state.user?.email || 'You',
       role: state.profile?.preferredRole || 'Member',
-      result: state.result ?? undefined
+      result: state.result ?? undefined,
+      availability: state.profile?.availability
     });
     const userTeams = () => state.teams.filter((team) => team.members.some((member) => member.id === currentUserId));
 
@@ -320,7 +321,12 @@ export function AppProvider({ children }: PropsWithChildren) {
             ...team,
             members: team.members.map((member) =>
               member.id === currentUserId
-                ? { ...member, name: nextProfile.fullName, role: nextProfile.preferredRole }
+                ? {
+                    ...member,
+                    name: nextProfile.fullName,
+                    role: nextProfile.preferredRole,
+                    availability: nextProfile.availability
+                  }
                 : member
             )
           }))

@@ -14,7 +14,8 @@ import { AppButton, AppTextInput } from '@/components/ui';
 import { preferredRoles } from '@/constants/questions';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
-import { Profile } from '@/types/domain';
+import { AvailabilityBlock, Profile } from '@/types/domain';
+import { availabilityBlocks } from '@/services/scoring/availability';
 
 export function ProfileFormModal({
   visible,
@@ -31,6 +32,7 @@ export function ProfileFormModal({
   const [course, setCourse] = useState('');
   const [year, setYear] = useState('');
   const [preferredRole, setPreferredRole] = useState('Flexible');
+  const [availability, setAvailability] = useState<AvailabilityBlock[]>([]);
   const [bio, setBio] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +44,7 @@ export function ProfileFormModal({
     setCourse(profile?.course ?? '');
     setYear(profile?.yearOfStudy?.toString() ?? '');
     setPreferredRole(profile?.preferredRole ?? 'Flexible');
+    setAvailability(profile?.availability ?? []);
     setBio(profile?.bio ?? '');
     setError('');
   }, [profile, visible]);
@@ -71,6 +74,7 @@ export function ProfileFormModal({
         course: course.trim() || undefined,
         yearOfStudy,
         preferredRole,
+        availability,
         bio: bio.trim() || undefined
       });
       onClose();
@@ -135,6 +139,36 @@ export function ProfileFormModal({
               </View>
             </View>
 
+            <View style={styles.roleField}>
+              <Text style={styles.label}>When are you usually free?</Text>
+              <Text style={styles.availabilityHelp}>
+                Used to find a meeting slot your team actually shares. Pick as many as apply.
+              </Text>
+              <View style={styles.roleGrid}>
+                {availabilityBlocks.map((block) => {
+                  const selected = availability.includes(block.id);
+                  return (
+                    <Pressable
+                      key={block.id}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
+                      accessibilityLabel={block.label}
+                      onPress={() =>
+                        setAvailability((current) =>
+                          current.includes(block.id)
+                            ? current.filter((item) => item !== block.id)
+                            : [...current, block.id]
+                        )
+                      }
+                      style={({ pressed }) => [styles.roleChip, selected && styles.roleChipSelected, pressed && styles.pressed]}
+                    >
+                      <Text style={[styles.roleText, selected && styles.roleTextSelected]}>{block.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
             <AppTextInput
               label="Short bio"
               placeholder="How do you like to work with a team?"
@@ -183,6 +217,7 @@ const styles = StyleSheet.create({
   },
   form: { gap: 15, paddingBottom: 8 },
   roleField: { gap: 9 },
+  availabilityHelp: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: -4 },
   label: { color: colors.textPrimary, fontSize: 13, fontWeight: '700', marginLeft: 2 },
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   roleChip: {

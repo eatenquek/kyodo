@@ -2,6 +2,7 @@ import { calculateTeamCompatibility } from '@/services/scoring/compatibilityScor
 import { questionnaireVersion, questions } from '@/constants/questions';
 import {
   Answer,
+  AvailabilityBlock,
   CompatibilityResult,
   CompatibilityRoleCoverage,
   PersonalityResult,
@@ -30,6 +31,7 @@ type ProfileRow = {
   year_of_study: number | null;
   preferred_role: string | null;
   bio: string | null;
+  availability: AvailabilityBlock[] | null;
   onboarding_completed: boolean | null;
 };
 
@@ -156,6 +158,7 @@ function mapProfile(row: ProfileRow): Profile {
     yearOfStudy: row.year_of_study ?? undefined,
     preferredRole: row.preferred_role ?? 'Flexible',
     bio: row.bio ?? undefined,
+    availability: row.availability ?? undefined,
     onboardingCompleted: Boolean(row.onboarding_completed)
   };
 }
@@ -297,7 +300,8 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
           id: member.user_id,
           name: memberProfile?.fullName ?? (member.user_id === userId ? email : 'Teammate'),
           role: memberProfile?.preferredRole ?? member.role,
-          result: latestResults.get(member.user_id)
+          result: latestResults.get(member.user_id),
+          availability: memberProfile?.availability
         };
       })
   }));
@@ -336,6 +340,7 @@ export async function saveBackendProfile(userId: string, profile: Omit<Profile, 
     year_of_study: profile.yearOfStudy,
     preferred_role: profile.preferredRole,
     bio: profile.bio,
+    availability: profile.availability ?? [],
     onboarding_completed: true,
     updated_at: new Date().toISOString()
   });

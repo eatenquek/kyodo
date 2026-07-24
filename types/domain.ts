@@ -10,6 +10,15 @@ export type Dimension =
   | 'accountability'
   | 'decisionComfort';
 
+// coarse blocks instead of exact hours - good enough to find a shared slot
+export type AvailabilityBlock =
+  | 'weekdayMorning'
+  | 'weekdayAfternoon'
+  | 'weekdayEvening'
+  | 'weekendMorning'
+  | 'weekendAfternoon'
+  | 'weekendEvening';
+
 export type Profile = {
   id: string;
   fullName: string;
@@ -18,6 +27,7 @@ export type Profile = {
   yearOfStudy?: number;
   preferredRole: string;
   bio?: string;
+  availability?: AvailabilityBlock[];
   onboardingCompleted: boolean;
 };
 
@@ -47,6 +57,7 @@ export type TeamMember = {
   name: string;
   role: string;
   result?: PersonalityResult;
+  availability?: AvailabilityBlock[];
 };
 
 export type Team = {
