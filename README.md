@@ -8,7 +8,7 @@
 
 **Target LOA:** Project Gemini
 
-**Milestone:** Milestone 2
+**Milestone:** Milestone 3
 
 **Project type:** Mobile-first team formation and compatibility application
 
@@ -34,366 +34,257 @@ For Milestone 2, the main demo flow is:
 6. Generate compatibility insights.
 7. View the best group split suggestion for a chosen team size.
 
-That was the Milestone 2 demo flow, and it still works end to end. Since then the
-demo also covers the AI coach on a team, and cohort mode: create a cohort, join it
-with a code from a second account, then split the roster into balanced teams. See
-[Milestone 3: current state](#milestone-3-current-state) for how those work.
+That flow still works end to end. The demo now also covers the AI coach on a
+team, and cohort mode: create a cohort, join it with a code from a second
+account, then split the roster into balanced teams.
 
 ---
 
 # Milestone 3: current state
 
-Sections 1-22 further down are the Milestone 2 submission doc, kept as written.
-This section covers everything built after it, and it is the accurate picture of
-the app today.
+Milestone 2 ended with a working scoring engine and a team space, but a
+compatibility score of 64 does not tell a team much on its own. Milestone 3 added
+an AI coach that explains a result, and cohort mode, so one organiser can split a
+whole tutorial group.
 
-Milestone 2 ended with a working scoring engine and a student-facing team space.
-The open question was what to do with the numbers. A compatibility score of 64
-tells a team almost nothing on its own. Milestone 3 went after that gap from two
-directions: an AI coach that turns a result into things a team can actually say
-to each other in week one, and cohort mode, which lets one organiser split a
-whole tutorial group instead of asking forty students to find each other.
+Sections 1 to 22 below are the Milestone 2 submission document, kept as written.
+Where a section has since been overtaken it carries a short note.
 
-Everything here runs against the live Supabase project. The AI coach is the only
-piece with an extra deployment step (an Edge Function and an API key).
-
-## M3.1 What shipped since Milestone 2
+## What shipped since Milestone 2
 
 | Area | What it does | Where it lives |
 | --- | --- | --- |
 | AI coach | Turns a scored team into a persona simulation, suggested roles, risks, a working agreement and a first meeting plan | `services/ai/`, `supabase/functions/ai-team-coach` |
-| Cohort mode | An organiser creates a cohort, students join by code, the whole roster is split into balanced teams | `app/(tabs)/cohort.tsx`, `app/cohort/[id].tsx`, `services/cohorts/cohortFormation.ts` |
-| Editing and deleting | Team owners and cohort organisers can edit details or delete, behind a confirmation that says what is lost | `components/teams/TeamFormModal.tsx`, `components/cohorts/CohortFormModal.tsx`, `components/ConfirmModal.tsx` |
+| Cohort mode | An organiser creates a cohort, students join by code, the roster is split into balanced teams | `app/(tabs)/cohort.tsx`, `app/cohort/[id].tsx`, `services/cohorts/cohortFormation.ts` |
+| Editing and deleting | Team owners and cohort organisers can edit details or delete, behind a confirmation | `components/teams/TeamFormModal.tsx`, `components/cohorts/CohortFormModal.tsx`, `components/ConfirmModal.tsx` |
 | Availability | Six coarse time blocks on the profile, overlap shown per team and per suggested group | `services/scoring/availability.ts` |
-| Score bands | Compatibility reads as "Workable · 59-73" rather than a bare percentage | `services/scoring/scoreInterpretation.ts` |
-| Profile pictures | Pick, crop and compress an avatar, stored as a data URI on the profile | `lib/avatar.ts`, `components/Avatar.tsx` |
+| Score bands | Compatibility reads as "Workable · 59-73" instead of a bare percentage | `services/scoring/scoreInterpretation.ts` |
+| Profile pictures | Pick, crop and compress an avatar, stored on the profile | `lib/avatar.ts`, `components/Avatar.tsx` |
 | School on a cohort | Required pick from a bundled university list, with logos | `components/cohorts/SchoolPicker.tsx`, `constants/universities.ts` |
 | Invite links | A `/join/<code>` deep link that survives a sign-in detour | `services/teams/inviteLink.ts`, `lib/pendingInvite.ts` |
-| Join code rotation | The owner can burn a leaked code without disturbing current members | `rotateBackendJoinCode` in `lib/supabase/backend.ts` |
-| Onboarding tracker | Home shows the next step out of four, not a generic welcome | `services/onboarding/journeyStatus.ts` |
-| Automated tests | 84 Vitest tests across 13 files over the pure service layer | `tests/` |
+| Join code rotation | The owner can replace a leaked code without disturbing current members | `rotateBackendJoinCode` in `lib/supabase/backend.ts` |
+| Onboarding tracker | Home shows the next step out of four | `services/onboarding/journeyStatus.ts` |
+| Automated tests | 84 Vitest tests across 13 files over the service layer | `tests/` |
 
-## M3.2 The AI coach
+## AI coach
 
-### Why the AI does not decide anything
-
-The matching result comes from the deterministic scoring model, and it stays
-that way. The model gets the finished numbers and explains them. We drew the
-line there for three reasons: the same team should get the same groups every
-time it runs a split, a scoring bug should be findable in a unit test rather
-than in a prompt, and a group of students should not be told they were sorted by
-something nobody can inspect. The AI layer is a translator, so if the Edge
-Function is missing or the key is unset, everything else still works.
+The deterministic model still does the matching. The coach receives the finished
+numbers and explains them. That keeps a split repeatable, keeps scoring bugs
+findable in unit tests, and lets the app work with the coach switched off.
 
 ### Request path
 
-The Expo client never talks to OpenAI. `generateTeamCoachAdvice` posts a typed
-payload to the `ai-team-coach` Edge Function, and the function does the rest:
+The Expo client never calls OpenAI. `generateTeamCoachAdvice` posts a typed
+payload to the `ai-team-coach` Edge Function, which:
 
-1. Reject anything without an `Authorization` header (401).
-2. Resolve the caller with a user-scoped Supabase client, so the JWT is verified
-   rather than trusted.
-3. Re-check server-side that the caller is actually on the team in the payload.
-   A non-member gets 403 even with a valid session. This check is the reason the
-   function uses two clients: the user client to find out who is asking, and a
-   privileged client to answer a question the asker's own permissions would not
-   let them ask.
-4. Validate the payload shape before spending a token on it (400).
-5. Look for a cached answer, call OpenAI on a miss, store the result, return it.
+1. rejects a request with no `Authorization` header (401);
+2. resolves the caller with a user-scoped Supabase client, which verifies the
+   token;
+3. re-checks server-side that the caller is on the team in the payload, 403
+   otherwise. This uses a privileged client, because the caller's own permissions
+   cannot answer that question;
+4. validates the payload before calling OpenAI (400);
+5. returns a cached answer if there is one, otherwise calls OpenAI and stores the
+   result.
 
-The API key lives in Supabase secrets. It is never bundled into the app, which
-matters because an Expo web build ships its environment to the browser.
+The API key is a Supabase secret. It is never bundled into the app, which matters
+because an Expo web build ships its environment to the browser.
 
 ### Structured output
 
 The function calls the OpenAI Responses API with a JSON schema that pins every
 field and array bound, so the client gets `summary`, `simulation`,
 `coachingNotes`, `roleSuggestions`, `riskWarnings`, `workingAgreement` and
-`firstMeetingPlan` or it gets an error. There is no free-text parsing on the
-client, and `TeamCoachAdvice` in `services/ai/teamCoach.ts` is the same shape the
-schema enforces. The model name comes from `OPENAI_MODEL` and defaults to
+`firstMeetingPlan`, or an error. `TeamCoachAdvice` in
+`services/ai/teamCoach.ts` matches the schema, so there is no free-text parsing
+on the client. The model comes from `OPENAI_MODEL` and defaults to
 `gpt-4.1-mini`.
 
 ### Caching
 
-Advice is cached server-side against the team, the target size and a signature
-of the inputs. The signature is built client-side in `buildTeamCoachPayload` from
-the roster and the suggested split, so it changes when the inputs change and only
-then. Pressing "Ask Kyodo" twice costs one API
-call; a teammate finishing their questionnaire invalidates the entry on its own.
-The screen watches the same signature and clears stale advice from view rather
-than showing a report that no longer matches the team below it.
+Advice is cached against the team, the target size and a signature of the inputs,
+built in `buildTeamCoachPayload` from the roster and the suggested split. Asking
+twice costs one API call, and a teammate finishing their questionnaire
+invalidates the entry. The screen watches the same signature and clears advice
+that no longer matches the team below it.
 
 ### Gating and failure
 
-`getCoachAvailability` decides whether the button is even usable, given member
-count, how many results are in, and whether a compatibility report and a
-formation exist. It returns the reason as text, so the UI explains the wait
-instead of showing a dead control. `describeCoachError` maps the failure cases
-(not signed in, not a member, key not configured, upstream refusal) onto
-sentences a student can act on. A missing Edge Function shows an error in one
-card and leaves the rest of the screen working.
+`getCoachAvailability` decides whether the button is usable from member count,
+completed results, and whether a compatibility report and a formation exist. It
+returns the reason as text, so the UI can explain the wait. `describeCoachError`
+maps the failure cases (not signed in, not a member, key not configured, upstream
+error) to readable sentences. A missing Edge Function breaks one card and leaves
+the screen working.
 
-## M3.3 Cohort mode
+## Cohort mode
 
-Milestone 2 assumed students find each other. That is the wrong shape for a
-tutorial: the tutor knows the roster, the students do not know each other yet,
-and somebody has to make forty people into ten teams before week three.
+Milestone 2 assumed students find each other. In a tutorial the tutor has the
+roster and the students do not know each other, so somebody has to turn forty
+people into ten teams before week three.
 
 ### A cohort is not a team
 
-A cohort carries a name, a description, a six-character join code, an organiser,
-a target team size and a school. Its roster is held separately, and each member
-is either the organiser or a student. We modelled it apart from teams on
-purpose: a team is small, self-organising and long-lived, while a cohort is a
-pool that exists to be split and then largely stops mattering.
+A cohort carries a name, description, join code, organiser, target team size and
+school, with its roster held separately. Teams are small and long-lived, while a
+cohort exists to be split. Fields are listed under
+[Database schema](#8-database-schema).
 
-### Joining without exposing the table
+### Joining
 
-Joining goes through a trusted server-side routine, for the same reason team
-joins do. To join by code the client would otherwise need read access to every
-cohort to find the match, which would leak names and codes to anyone signed in.
-The routine resolves the code on the server, adds the membership, and tells the
-caller which cohort it was and whether they were already in it. The client learns
-nothing about codes it did not already have.
+Joining goes through a trusted server-side routine. Matching a code on the client
+would mean giving every signed-in user read access to every cohort.
 
 ### The recursion bug
 
-Our first cut at the access rules had each side ask the other side for an
-answer: a cohort was visible if you were on its roster, and the roster was
-visible if you could see the cohort. Postgres refused the pair outright with
-`42P17`, infinite recursion. The fix was a single trusted helper that answers
-"is this person in this cohort" without re-entering either rule, which both
-sides now call. A similar problem in the team join routine (`42702`, an
-ambiguous reference between an output value and a field of the same name) turned
-up the same way.
-
-Both were found by impersonating a real student inside a transaction that gets
-rolled back, then running the exact query the client would run. That is worth
-more than re-reading the rules, because reading them is what produced the bug in
-the first place.
+Our first access rules had each side ask the other: a cohort was visible if you
+were on its roster, and the roster was visible if you could see the cohort.
+Postgres refused the pair with `42P17`. A single trusted helper now answers "is
+this person in this cohort" without re-entering either rule. The team join
+routine had a related error, `42702`, where an output value shared a name with a
+field.
 
 ### Running the split
 
-`planCohortFormation` reuses `suggestBestTeamFormation`, the Milestone 2
-optimiser, rather than growing a second matching algorithm. It filters the
-roster, refuses to run when it cannot produce a sensible answer, and returns a
-discriminated union instead of throwing:
-
-- fewer than 4 completed profiles, blocked with the names still pending;
-- a target size below 2, blocked;
-- a target size above `ready - 2`, blocked, since that cannot make two groups.
-
-On success it adds per-group shared availability on top of the work-style
-result, so a group that scores well but shares no free evening says so.
+`planCohortFormation` reuses `suggestBestTeamFormation` from Milestone 2 rather
+than adding a second matching algorithm. It returns a discriminated union instead
+of throwing, and blocks with a reason when fewer than 4 profiles are complete,
+when the target size is below 2, or when the target is above `ready - 2`, which
+cannot produce two groups. On success it adds each group's shared availability.
 
 ### The organiser is not a student
 
-The organiser runs the split and does not get placed in a group.
 `planCohortFormation` takes an optional `organiserId` and filters that member
-out; the detail screen passes `cohort.createdBy`, leaves them out of the student
-count and the "profiles ready" figure, and tags their roster row as Organiser.
-Without this a tutor of thirty students becomes a thirty-first student and quietly
-skews a group.
+out. The detail screen passes `cohort.createdBy`, excludes them from the student
+and profiles-ready counts, and tags their roster row Organiser. Otherwise a tutor
+of thirty students becomes a thirty-first student and skews a group.
 
-## M3.4 Editing and deleting what you created
+## Editing and deleting
 
-Anything a user can create, they can now fix or remove. Team owners can change
-the name, project and description or delete the team. Cohort organisers can
-change the name, description and school or delete the cohort.
+Team owners can change the name, project and description, or delete the team.
+Cohort organisers can change the name, description and school, or delete the
+cohort.
 
-Deletes are the interesting half, and they get three layers:
+Deletes go through the shared `ConfirmModal`. The dialog names what disappears: a
+team takes its members, saved reports and coach advice, a cohort takes its
+roster, and both stop the join code working.
 
-**Confirmation.** Both go through the shared `ConfirmModal` in its danger tone.
-The dialog names what disappears rather than asking a generic "are you sure":
-deleting a team takes its members, saved compatibility reports and coach advice;
-deleting a cohort takes its roster; both stop the join code working. The cancel
-button is the calm one and the destructive button is the coloured one, so a
-mis-tap lands on the safe side.
+Only the creator can delete, and the database enforces it. The owner check in the
+UI decides what to render, not what is permitted. Related records are removed
+with the parent.
 
-**Server-side authorisation.** Only the creator can delete, and the server is
-what enforces it. A member who calls the API by hand deletes nothing. The owner
-check in the UI decides what to render, never what is permitted.
+Every mutation reads the affected record back. A blocked delete returns success
+with nothing changed rather than an error, so without that read an unauthorised
+delete would look like it worked. Nothing returned means the server refused, and
+the helper raises "Only the team owner can delete this team." The same pattern
+guards join code rotation and the cohort target size update.
 
-**Nothing left dangling.** Members, saved reports and cached advice are removed
-along with the thing they belong to, so a delete cannot leave records pointing at
-a team or cohort that no longer exists.
+## Availability
 
-One implementation detail worth naming: every mutation reads the affected record
-back. A blocked update or delete comes back as a success with nothing changed
-rather than as an error, so without that read an unauthorised delete would look
-like it worked. Nothing returned means the server refused, and the helper raises
-"Only the team owner can delete this team." The same pattern guards join code
-rotation and the cohort target size update.
+Availability is six coarse blocks: weekday and weekend, morning, afternoon and
+evening. We did not build a timetable because students will fill in six chips.
 
-## M3.5 Availability as a separate signal
+It is kept out of the compatibility score. A pair who cannot meet has a different
+problem from a pair who plan differently, and averaging the two hides both.
+`calculateAvailabilityOverlap` reports shared blocks, near misses where all but
+one member can make it, and the members who have stated nothing. Those members
+are excluded from the maths, never counted as free.
 
-Availability is stored as up to six coarse blocks (weekday and weekend, morning,
-afternoon and evening) rather than a timetable. Students will fill in six chips;
-most will not fill in a calendar.
+## Score bands
 
-It is kept out of the compatibility score on purpose. Schedule overlap is a hard
-constraint, not a preference: a pair who cannot meet is a different problem from
-a pair who plan differently, and averaging the two hides both. So
-`calculateAvailabilityOverlap` runs separately and reports shared blocks, near
-misses where all but one member can make it, and the members who have not said
-anything. Those members are excluded from the maths rather than assumed free,
-which keeps the app from inventing an overlap out of missing data.
+A 15-item self-report cannot support a number like 64, so compatibility reads as
+a band and a range ("Workable · 59-73") from `describeScoreBand` and
+`scoreRange`, with bands at 72 and 58 and a spread of seven points either side.
+The band names describe what to do next: Strong, Workable, Worth discussing. A
+unit test asserts that no band label says incompatible, toxic, poor or
+mismatched.
 
-## M3.6 Bands instead of percentages
-
-A 15-item self-report cannot support a number like 64. Compatibility now reads as
-a band and a range ("Workable · 59-73"), from `describeScoreBand` and
-`scoreRange`, with the bands set at 72 and 58 and the range spread seven points
-either side. The bands are named for what to do next (Strong, Workable, Worth
-discussing) instead of how good the team is, and a unit test asserts that no band
-label ever says incompatible, toxic, poor or mismatched. That test exists because
-copy drifts across a project and this is the part we do not want to get wrong.
-
-## M3.7 Profile pictures and school
+## Profile pictures and school
 
 `pickAvatar` uses `expo-image-picker` with square cropping and compression, and
-stores the result as a data URI on the profile. Keeping the bytes with the
-profile is the wrong answer at scale, and the right answer for a POC: no bucket,
-no signed URLs, no second failure mode, and the picture arrives with the profile
-the app already fetches. Supabase Storage is the migration path when avatars
-get bigger than a compressed thumbnail. `components/Avatar.tsx` renders the image
-or falls back to a coloured initial, so a roster never has holes in it.
+stores the result as a data URI on the profile. That avoids a storage bucket and
+signed URLs for a POC, at the cost of not scaling past a thumbnail.
+`components/Avatar.tsx` falls back to a coloured initial when there is no
+picture.
 
-Cohorts carry a school. It is a required pick from a bundled list of universities
-with logos in `assets/uni-logos`, resolved through `constants/universities.ts`.
-The list is bundled rather than fetched so the picker works offline and the logos
-never depend on someone else's CDN.
+Cohorts require a school, picked from a bundled list with logos in
+`assets/uni-logos` and names in `constants/universities.ts`. The list is bundled
+so the picker works offline.
 
-## M3.8 Invite links and code rotation
+## Invite links and code rotation
 
 `parseInviteInput` accepts a bare code, a deep link or an https link, so pasting
 whatever arrived in a chat works. If a signed-out user opens an invite,
-`lib/pendingInvite.ts` parks the code, the user registers, and the join runs on
-first authenticated render. Losing the invite to a login redirect is the sort of
-thing that makes a student give up.
+`lib/pendingInvite.ts` parks the code and the join runs on first authenticated
+render.
 
-Codes are guessable enough to be shareable, which means a leaked code needs an
-answer. The owner can rotate it: the old code stops working immediately, current
-members are untouched, and the rotation retries on the unique-constraint
-collision instead of failing.
+The owner can rotate a leaked code. The old code stops working immediately,
+current members are unaffected, and the rotation retries if the new code
+collides.
 
-## M3.9 Onboarding tracker
+## Onboarding tracker
 
-`getJourneyStatus` computes the single next step out of four (profile,
-questionnaire, team, insights) from live state and returns a title, description
-and action label. Home shows that one step rather than a static welcome card. It
-is pure and unit-tested, which is the point: the "what should I do next" logic is
-the sort of thing that rots into nested ternaries inside a component.
+`getJourneyStatus` computes the next step out of four (profile, questionnaire,
+team, insights) from live state and returns a title, description and action
+label. Home shows that step. It is pure and unit-tested.
 
-## M3.10 Bugs found along the way
+## Bugs found along the way
 
-Five worth writing down, because each one changed how we test rather than just
-what the code says.
+**Recursive access rules (`42P17`)** and **an ambiguous reference in the team
+join routine (`42702`)**, both described above. Found by acting as a real student
+inside a rolled-back transaction and running the query the client runs.
 
-**Recursive access rules (`42P17`).** Each side of the cohort check asked the
-other side for an answer. Fixed with a trusted helper that both sides call. Found
-by running a real student's query under impersonation, not by re-reading the
-rules.
+**Deleting a team was never permitted.** Reading, creating and editing were
+covered, so nothing looked wrong until an owner deleted a team and it stayed. A
+blocked delete returns success with nothing changed, so the app reported no error
+either. Fixed, and mutations now read the record back.
 
-**Ambiguous reference in the team join routine (`42702`).** An output value
-shared a name with a field, so Postgres could not tell which one the body meant.
-The same method found it.
+**The delete dialog blanked mid-dismiss.** Clearing the target closed the dialog,
+but the fade-out still had frames to render, so the copy fell back to "This team,
+its 0 members" with an empty code. The dialogs now render from the last target
+and take visibility from a separate flag.
 
-**Deleting a team was never permitted, and never said so.** Reading, creating and
-editing were all covered, so nothing looked wrong until an owner deleted a team
-and it stayed. A blocked delete comes back as a success that changed nothing, so
-the app reported no error either. This is what pushed us to read the affected
-record back on every mutation, and to extend the impersonation check to cover
-deletes: act as a member who is not the owner, try to delete someone else's team,
-confirm nothing is removed, roll back.
+**Deleting a cohort flashed "Cohort not found"**, because the cohort left state
+before the navigation ran. The screen holds a spinner while a delete is in
+flight.
 
-**The delete dialog blanked out mid-dismiss.** Clearing the target closed the
-dialog, but the fade-out still had frames to render, so the copy fell back to
-"This team, its 0 members" with an empty code for a few hundred milliseconds. The
-dialogs now render from the last target and use a separate visibility flag.
+## Testing
 
-**Deleting a cohort flashed "Cohort not found".** It left state before the
-navigation ran, so the detail screen rendered its empty case on the way out. The
-screen now holds a spinner once a delete is in flight.
+`npm test` runs 84 Vitest tests across 13 files. `npm run typecheck` runs
+`tsc --noEmit` in strict mode. Both pass.
 
-## M3.11 Testing
-
-`npm test` runs 84 Vitest tests across 13 files; `npm run typecheck` runs
-`tsc --noEmit` in strict mode. Both are green.
-
-The suite runs in a plain Node environment with no React Native mocking, which is
-possible because the business logic lives in `services/` as pure functions. That
-constraint was a Milestone 2 decision and it paid for itself here: cohort
-formation, coach gating and coach error mapping were all testable the day they
-were written.
+The suite runs in plain Node with no React Native mocking, because the business
+logic lives in `services/` as pure functions with no React Native imports.
 
 Covered: questionnaire scoring and reverse items, strict completion, work-style
 profiles, compatibility scoring, formation with remainders, cohort formation
-including organiser exclusion and every blocked case, availability overlap,
-score bands and copy safety, invite parsing, active team resolution, coach
-payload signatures, coach gating, coach error mapping, journey status.
+including organiser exclusion and every blocked case, availability overlap, score
+bands and copy safety, invite parsing, active team resolution, coach payload
+signatures, coach gating, coach error mapping, journey status.
 
-Not covered: component rendering, navigation, and the Supabase query layer. Those
-are still manual, and the query layer is the weakest spot in the suite. RLS and
-RPC behaviour is verified against the live database with the rolled-back
-impersonation transaction shown above rather than with fixtures.
+Not covered: component rendering, navigation, and the Supabase query layer, which
+is the weakest spot in the suite. Access rules are checked against the live
+database with the rolled-back impersonation transaction.
 
-## M3.12 Security model
-
-Access is decided on the server everywhere, and the shape is the same
-throughout. You can read a team or cohort if you own it or belong to it. You can
-edit or delete it only if you created it. You can add or remove yourself from a
-roster, and nobody else. A saved compatibility report is visible to the team it
-describes. Cached coach advice is reachable only through the Edge Function, never
-from the client.
-
-Two rules hold across the app. Joining goes through trusted server-side routines,
-so codes are never enumerable by a signed-in stranger. And every privileged
-action is enforced on the server, with the client-side check deciding only what
-to draw.
-
-## M3.13 Running it
-
-```bash
-npm run web:local   # no backend, single device, simulated auth
-npm run web         # needs .env.local with the Supabase URL and anon key
-npm test            # 84 unit tests
-npm run typecheck   # tsc --noEmit
-```
-
-Cohorts and the AI coach need the backend. In local mode the cohort screens open
-and the school picker works, but creating or joining a cohort raises a clear
-error rather than pretending to succeed.
-
-The AI coach additionally needs the Edge Function deployed and `OPENAI_API_KEY`
-set in Supabase secrets:
-
-```bash
-supabase functions deploy ai-team-coach
-supabase secrets set OPENAI_API_KEY=sk-...
-```
-
-## M3.14 Known gaps
+## Known gaps
 
 - The questionnaire is self-reported and is not a validated instrument.
 - Exact search is capped above roughly 50,000 combinations, so very large cohorts
-  fall back rather than run for minutes.
+  fall back instead of running for minutes.
 - Local mode holds one profile at a time; switching accounts on the same device
   clears the previous one's data.
-- No realtime. A teammate's new result appears on refocus, not as it happens.
+- No realtime. A teammate's new result appears on refocus.
 - No component or end-to-end tests, and the backend query layer is manual.
 - A join code works for anyone holding it until the owner rotates it.
 - A suggested cohort split is not stored, so reopening the screen recomputes it.
 - Avatars as data URIs will not scale past a POC.
 
-## M3.15 What is next
+## What is next
 
-- Publish a cohort split as real teams in one step. Right now the organiser reads
-  the groups out and students create the teams by hand, which is the obvious
-  missing link between cohort mode and team mode.
-- Availability as a matching input rather than a report, once we can explain how
-  it trades against work-style fit without hiding either.
+- Publish a cohort split as real teams in one step. The organiser currently reads
+  the groups out and students create the teams by hand.
+- Availability as a matching input, not just a report, once we can explain how it
+  trades against work-style fit.
 - Per-account local storage.
 - Accessibility roles on the last few controls.
 
@@ -801,7 +692,7 @@ Compatibility and matching logic is deterministic. This means the same profiles 
 
 # 8. Database schema
 
-The current app expects a Supabase project with tables for users’ profiles, questionnaire data, results, teams, team memberships, and compatibility results.
+The current app expects a Supabase project with tables for users’ profiles, questionnaire data, results, teams, team memberships, compatibility results, cohorts, cohort rosters, and cached AI coach advice.
 
 The important tables are:
 
@@ -812,7 +703,12 @@ personality_results
 teams
 team_members
 compatibility_results
+cohorts
+cohort_members
+ai_coach_advice
 ```
+
+The last three were added after Milestone 2, along with some extra fields on the original tables. Those are marked below.
 
 ## 8.1 `profiles`
 
@@ -827,10 +723,14 @@ Expected fields include:
 - `year_of_study`;
 - `preferred_role`;
 - `bio`;
+- `availability` (added after Milestone 2);
+- `avatar` (added after Milestone 2);
 - `onboarding_completed`;
 - `updated_at`.
 
 The app reads this table to show the Profile tab and member names inside teams.
+
+`availability` holds the coarse time blocks a user is free, such as weekday evenings, and is used to work out when a team can actually meet. `avatar` holds the profile picture as a compressed data URI, so it arrives with the profile the app already loads and needs no storage bucket.
 
 ## 8.2 `questionnaire_answers`
 
@@ -881,9 +781,10 @@ Expected fields include:
 - `project_name`;
 - `description`;
 - `join_code`;
-- `created_by`.
+- `created_by`;
+- `join_code_updated_at` (added after Milestone 2).
 
-Each team has a join code so other users can join through the Teams screen.
+Each team has a join code so other users can join through the Teams screen. The owner can generate a new code if the old one leaks, and `join_code_updated_at` records when that last happened.
 
 ## 8.5 `team_members`
 
@@ -909,13 +810,82 @@ Expected fields include:
 - `strengths`;
 - `frictions`;
 - `tips`;
+- `created_at`;
+- `pair_fit_score` (added after Milestone 2);
+- `role_coverage_score` (added after Milestone 2);
+- `coordinator_health_score` (added after Milestone 2);
+- `suggested_coordinator` (added after Milestone 2);
+- `role_coverage` (added after Milestone 2);
+- `shared_responsibilities` (added after Milestone 2);
+- `overlap_risks` (added after Milestone 2);
+- `gaps` (added after Milestone 2).
+
+Milestone 2 recalculated the richer fields in memory and only stored the summary. The full report is now saved, so a team can reopen its last report without every member being online to regenerate it.
+
+## 8.7 `cohorts`
+
+Stores a class or tutorial group that an organiser splits into teams. Added after Milestone 2.
+
+Expected fields include:
+
+- `id`;
+- `name`;
+- `description`;
+- `join_code`;
+- `created_by`;
+- `target_group_size`;
+- `school`;
 - `created_at`.
 
-The app can also recalculate richer Milestone 2 compatibility fields in memory, such as pair fit, role coverage, and coordination health.
+`created_by` is the organiser, who runs the split and is not placed into any of the resulting groups. `target_group_size` is the number of students the organiser is aiming for per team, and it can be changed before running the split. `school` is the slug of the university the cohort belongs to, which the app uses to show the right logo.
 
-## 8.7 Schema note for this README
+## 8.8 `cohort_members`
 
-This README is intentionally scoped to the pushed Milestone 2 app. The later AI coach table and Edge Function are not listed as current database requirements because they are part of the future AI plan, not the pre-AI implementation.
+Stores the cohort roster.
+
+Expected fields include:
+
+- `cohort_id`;
+- `user_id`;
+- `role`;
+- `created_at`.
+
+`role` is either `organiser` or `student`. The app loads this table to show who has joined, who has a completed work-style profile, and who the split is still waiting on.
+
+## 8.9 `ai_coach_advice`
+
+Stores generated AI coach advice so the same request does not have to be paid for twice. Added after Milestone 2.
+
+Expected fields include:
+
+- `team_id`;
+- `target_group_size`;
+- `formation_signature`;
+- `advice`;
+- `input_summary`;
+- `model`;
+- `created_by`;
+- `updated_at`.
+
+`formation_signature` is derived from the roster and the suggested split, so the cached entry stops matching as soon as the team changes or a member completes their questionnaire. Only the Edge Function reads or writes this table. The app never touches it directly.
+
+## 8.10 Access rules and deletes
+
+Every table is protected by row-level security, so the database enforces the rules below:
+
+- a team or cohort is readable by its creator and its members;
+- only the creator can edit or delete a team or cohort;
+- a user can add or remove only themselves from a roster;
+- a compatibility report is readable by the team it describes;
+- `ai_coach_advice` is reachable only through the Edge Function.
+
+Joining by code goes through a `security definer` function. Matching a code client-side would mean giving every signed-in user read access to every team and cohort.
+
+`team_members`, `compatibility_results` and `ai_coach_advice` are `on delete cascade` against `teams`, and `cohort_members` against `cohorts`. Deleting a team or cohort therefore clears everything hanging off it in one statement, and cannot leave rows pointing at something that no longer exists.
+
+## 8.11 Schema note for this README
+
+Sections 8.1 to 8.6 describe the Milestone 2 app as submitted. The fields and tables marked "added after Milestone 2" came with cohort mode, availability, profile pictures and the AI coach. The schema is applied to the live Supabase project, and [Bugs found along the way](#bugs-found-along-the-way) covers the access-rule bugs found while getting it right.
 
 ---
 
@@ -1341,7 +1311,7 @@ Testing for Milestone 2 focuses on functional correctness, deterministic scoring
 > **Updated since Milestone 2.** This section described a manual-only strategy.
 > A Vitest suite now covers the scoring, matching, cohort formation and coach
 > logic (`npm test`, 84 tests across 13 files), and `npm run typecheck` runs
-> `tsc --noEmit` in strict mode. See [M3.11 Testing](#m311-testing) for what is
+> `tsc --noEmit` in strict mode. See [Testing](#testing) for what is
 > and is not covered, and [`docs/TESTING.md`](docs/TESTING.md) for the latest
 > system-test and user-test results. The manual procedures below remain valid.
 
@@ -1590,34 +1560,6 @@ The app includes a local state fallback when Supabase is not configured. This ma
 
 The app version-checks questionnaire results and filters outdated local results. This prevents old data from silently producing incorrect compatibility insights.
 
-The three below came out of the Milestone 3 work and now apply across the app.
-
-## 18.8 The server decides, the client only draws
-
-Every privileged action is enforced on the server. Owner checks in the UI choose
-which buttons to render; they never grant anything. Deleting a team, rotating a
-join code and editing a cohort all pass through a check that would refuse the
-same call made by hand. The AI coach follows the rule too: the Edge Function
-verifies the caller and re-checks team membership before it spends a token.
-
-## 18.9 Fail loudly, in one place
-
-An unauthorised update comes back as a success that changed nothing rather than
-as an error, so every mutation reads the affected record back and treats an empty
-result as a refusal with a readable message. The same reflex shows up in the UI: blocked splits return a reason
-instead of throwing, coach failures are mapped to sentences by
-`describeCoachError`, and a missing Edge Function degrades one card instead of
-the screen. Silent success on a destructive action is the failure mode we most
-wanted to avoid.
-
-## 18.10 Keep the core pure so it stays testable
-
-Business logic lives in `services/` as pure functions with no React Native
-imports, so the whole suite runs in plain Node with no mocking. This was cheap to
-hold to and it is why cohort formation, coach gating and error mapping had tests
-the day they were written. Anything that starts as a ternary inside a component
-and grows a second condition gets moved out.
-
 ---
 
 # 19. Project management and GitHub usage
@@ -1680,14 +1622,14 @@ Exact search is useful for small-to-medium groups, but it can become expensive f
 Written at Milestone 2. Cohort mode has since covered the main organiser job, so
 a tutor can create a cohort, watch profiles come in and split the class. There is
 still no analytics view over multiple cohorts, and no way to publish a suggested
-split as real teams. See [M3.3](#m33-cohort-mode).
+split as real teams. See [Cohort mode](#cohort-mode).
 
 ## 20.5 No advanced availability matching
 
 Students now state availability in six coarse blocks, and the app reports overlap
 per team and per suggested group. It is a report, not a matching input: nothing
 in the split optimises for it, and timezone, timetable and skill inventory are
-still absent. See [M3.5](#m35-availability-as-a-separate-signal).
+still absent. See [Availability](#availability).
 
 ---
 
@@ -1702,7 +1644,7 @@ what was actually built, which is in
 | AI coach explanations (21.1) | Built, with the deterministic model still doing the matching |
 | Supabase-linked AI implementation (21.2) | Built as described, plus caching and a membership check in the Edge Function |
 | Automated scoring and formation tests (21.3) | Built, 84 tests across 13 files |
-| Storage for saved AI advice (21.3) | Built, cached server-side |
+| Storage for saved AI advice (21.3) | Built |
 | More matching inputs (21.4) | Availability collected and reported, not yet a matching input |
 | Instructor or organiser mode (21.5) | Built as cohort mode, without roster upload or support flagging |
 
@@ -1917,21 +1859,29 @@ a
 
 inside the Expo CLI terminal.
 
-## 22.11 Typecheck
+## 22.11 Deploy the AI coach
+
+The coach is optional. Without it the app runs and that one card shows an error.
+
+```bash
+supabase functions deploy ai-team-coach
+supabase secrets set OPENAI_API_KEY=sk-...
+```
+
+Cohorts need the backend too. In local mode the cohort screens and the school
+picker open, but creating or joining a cohort raises a clear error.
+
+## 22.12 Typecheck and tests
 
 ```bash
 npm run typecheck
+npm test
 ```
 
-Expected result:
+`npm run typecheck` runs `tsc --noEmit` and should complete without errors.
+`npm test` runs the Vitest suite, currently 84 tests across 13 files.
 
-```text
-tsc --noEmit
-```
-
-completes without errors.
-
-## 22.12 Use the application
+## 22.13 Use the application
 
 Recommended POC walkthrough:
 
@@ -1950,11 +1900,11 @@ Recommended POC walkthrough:
 13. If the team has enough completed profiles, use Best group split.
 14. Change target team size and compare suggested groupings.
 
-## 22.13 Demo notes
+## 22.14 Demo notes
 
 For a useful demo, prepare at least two accounts with completed questionnaires. For the best-team-matching demo, prepare at least four completed profiles so the app can show target team size options and suggested splits.
 
-## 22.14 Troubleshooting
+## 22.15 Troubleshooting
 
 ### App cannot connect to Supabase
 
