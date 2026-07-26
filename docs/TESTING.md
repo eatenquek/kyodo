@@ -66,13 +66,13 @@ Ran through the app manually in local mode (`npm run web:local`, no backend) plu
 - editing a team or cohort prefills the sheet with the current values and saves
 - delete asks first and names what goes with it (members, insights, coach advice,
   roster, join code), cancel is the quiet button
-- checked the delete policies directly against Postgres by impersonating a
-  non-owner inside a rolled-back transaction: the delete removes zero rows, and
-  the app turns that into "Only the team owner can delete this team"
+- checked deletes directly against the database by acting as a non-owner inside
+  a rolled-back transaction: nothing is removed, and the app turns that into
+  "Only the team owner can delete this team"
 
 **Bugs found + fixed**
-- `teams` had update and select policies but no delete policy, so an owner
-  deleting a team silently removed nothing. Added the owner delete policy
+- an owner deleting a team silently removed nothing, because deletes were never
+  permitted on the server in the first place. Fixed
 - the delete dialog blanked out while fading: the team was cleared from state
   before the modal finished animating, so the copy dropped to "This team, its 0
   members" with an empty code. The dialogs now render from the last target

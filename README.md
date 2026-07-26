@@ -93,11 +93,11 @@ payload to the `ai-team-coach` Edge Function, and the function does the rest:
 1. Reject anything without an `Authorization` header (401).
 2. Resolve the caller with a user-scoped Supabase client, so the JWT is verified
    rather than trusted.
-3. Check with a service-role client that the caller is in `team_members` for the
-   team in the payload. A non-member gets 403 even with a valid session. This
-   check is the reason the function uses two clients: the user client to find out
-   who is asking, the service client to answer a question the asker's own RLS
-   would not let them ask.
+3. Re-check server-side that the caller is actually on the team in the payload.
+   A non-member gets 403 even with a valid session. This check is the reason the
+   function uses two clients: the user client to find out who is asking, and a
+   privileged client to answer a question the asker's own permissions would not
+   let them ask.
 4. Validate the payload shape before spending a token on it (400).
 5. Look for a cached answer, call OpenAI on a miss, store the result, return it.
 
@@ -116,10 +116,10 @@ schema enforces. The model name comes from `OPENAI_MODEL` and defaults to
 
 ### Caching
 
-Advice is cached in `ai_coach_advice` on `(team_id, target_group_size,
-formation_signature)`. The signature is built client-side in
-`buildTeamCoachPayload` from the roster and the suggested split, so it changes
-when the inputs change and only then. Pressing "Ask Kyodo" twice costs one API
+Advice is cached server-side against the team, the target size and a signature
+of the inputs. The signature is built client-side in `buildTeamCoachPayload` from
+the roster and the suggested split, so it changes when the inputs change and only
+then. Pressing "Ask Kyodo" twice costs one API
 call; a teammate finishing their questionnaire invalidates the entry on its own.
 The screen watches the same signature and clears stale advice from view rather
 than showing a report that no longer matches the team below it.
@@ -140,46 +140,38 @@ Milestone 2 assumed students find each other. That is the wrong shape for a
 tutorial: the tutor knows the roster, the students do not know each other yet,
 and somebody has to make forty people into ten teams before week three.
 
-### Data model
+### A cohort is not a team
 
-`cohorts` holds the name, description, six-character `join_code`, `created_by`,
-`target_group_size` and `school`. `cohort_members` holds the roster with a role
-of `organiser` or `student`, and cascades off the cohort row. A cohort is
-deliberately not a team: teams are small, self-organising and long-lived, while
-a cohort is a pool that exists to be split.
+A cohort carries a name, a description, a six-character join code, an organiser,
+a target team size and a school. Its roster is held separately, and each member
+is either the organiser or a student. We modelled it apart from teams on
+purpose: a team is small, self-organising and long-lived, while a cohort is a
+pool that exists to be split and then largely stops mattering.
 
 ### Joining without exposing the table
 
-Joining goes through `join_cohort_by_code`, a `SECURITY DEFINER` function, for
-the same reason team joins do. To join by code the client would otherwise need
-read access to every cohort row to find the match, which would leak names and
-codes to anyone signed in. The function looks up the code server-side, inserts
-the membership, and returns the cohort id plus whether the caller was already a
-member. The client learns nothing about codes it did not already have.
+Joining goes through a trusted server-side routine, for the same reason team
+joins do. To join by code the client would otherwise need read access to every
+cohort to find the match, which would leak names and codes to anyone signed in.
+The routine resolves the code on the server, adds the membership, and tells the
+caller which cohort it was and whether they were already in it. The client learns
+nothing about codes it did not already have.
 
-### The RLS recursion bug
+### The recursion bug
 
-The first policy set had `cohorts` check membership by selecting from
-`cohort_members`, while `cohort_members` checked visibility by selecting from
-`cohorts`. Postgres refused the pair with `42P17`, infinite recursion. The fix
-was `is_cohort_participant(uuid)`, a `SECURITY DEFINER` helper that answers the
-membership question without re-entering either policy, and both policies now
-call it. A similar problem in `join_team_by_code` (`42702`, an ambiguous
-reference between an OUT parameter and a column) was caught the same way.
+Our first cut at the access rules had each side ask the other side for an
+answer: a cohort was visible if you were on its roster, and the roster was
+visible if you could see the cohort. Postgres refused the pair outright with
+`42P17`, infinite recursion. The fix was a single trusted helper that answers
+"is this person in this cohort" without re-entering either rule, which both
+sides now call. A similar problem in the team join routine (`42702`, an
+ambiguous reference between an output value and a field of the same name) turned
+up the same way.
 
-Both were found by impersonating a real user inside a transaction that gets
-rolled back:
-
-```sql
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"<auth user id>","role":"authenticated"}';
--- run the query as that student
-rollback;
-```
-
-This is worth more than reading the policies, because it exercises what the
-client will actually hit.
+Both were found by impersonating a real student inside a transaction that gets
+rolled back, then running the exact query the client would run. That is worth
+more than re-reading the rules, because reading them is what produced the bug in
+the first place.
 
 ### Running the split
 
@@ -219,21 +211,20 @@ deleting a cohort takes its roster; both stop the join code working. The cancel
 button is the calm one and the destructive button is the coloured one, so a
 mis-tap lands on the safe side.
 
-**Row-level security.** `Team owners can delete their team` and
-`Organisers can delete their cohort` restrict the delete to `created_by`. A
-member who calls the API by hand deletes nothing. The client-side owner check
-decides what to render, not what is allowed.
+**Server-side authorisation.** Only the creator can delete, and the server is
+what enforces it. A member who calls the API by hand deletes nothing. The owner
+check in the UI decides what to render, never what is permitted.
 
-**Cascades.** `team_members`, `compatibility_results` and `ai_coach_advice` are
-`on delete cascade` against `teams`, and `cohort_members` against `cohorts`, so a
-delete cannot leave rows pointing at a team that no longer exists.
+**Nothing left dangling.** Members, saved reports and cached advice are removed
+along with the thing they belong to, so a delete cannot leave records pointing at
+a team or cohort that no longer exists.
 
-One implementation detail worth naming: every mutation ends with
-`.select(...).maybeSingle()`. PostgREST reports a policy-blocked update or delete
-as success with zero rows, not as an error, so without the select an unauthorised
-delete would look like it worked. Zero rows back means the policy refused, and
-the helper raises "Only the team owner can delete this team." The same pattern
-guards `rotateBackendJoinCode` and the cohort target size update.
+One implementation detail worth naming: every mutation reads the affected record
+back. A blocked update or delete comes back as a success with nothing changed
+rather than as an error, so without that read an unauthorised delete would look
+like it worked. Nothing returned means the server refused, and the helper raises
+"Only the team owner can delete this team." The same pattern guards join code
+rotation and the cohort target size update.
 
 ## M3.5 Availability as a separate signal
 
@@ -262,10 +253,10 @@ copy drifts across a project and this is the part we do not want to get wrong.
 ## M3.7 Profile pictures and school
 
 `pickAvatar` uses `expo-image-picker` with square cropping and compression, and
-stores the result as a data URI in `profiles.avatar`. Storing bytes in a text
-column is the wrong answer at scale, and the right answer for a POC: no bucket,
-no signed URLs, no second failure mode, and the image arrives with the profile
-row the app already fetches. Supabase Storage is the migration path when avatars
+stores the result as a data URI on the profile. Keeping the bytes with the
+profile is the wrong answer at scale, and the right answer for a POC: no bucket,
+no signed URLs, no second failure mode, and the picture arrives with the profile
+the app already fetches. Supabase Storage is the migration path when avatars
 get bigger than a compressed thumbnail. `components/Avatar.tsx` renders the image
 or falls back to a coloured initial, so a roster never has holes in it.
 
@@ -300,34 +291,29 @@ the sort of thing that rots into nested ternaries inside a component.
 Five worth writing down, because each one changed how we test rather than just
 what the code says.
 
-**Recursive RLS between cohorts and members (`42P17`).** Each table's policy
-selected from the other. Fixed with the `is_cohort_participant` helper. Found by
-running a real student's query under impersonation, not by reading the policies.
+**Recursive access rules (`42P17`).** Each side of the cohort check asked the
+other side for an answer. Fixed with a trusted helper that both sides call. Found
+by running a real student's query under impersonation, not by re-reading the
+rules.
 
-**Ambiguous reference in `join_team_by_code` (`42702`).** An OUT parameter shared
-a name with a column, so Postgres could not tell which one the body meant. Same
-method found it.
+**Ambiguous reference in the team join routine (`42702`).** An output value
+shared a name with a field, so Postgres could not tell which one the body meant.
+The same method found it.
 
-**`teams` had no delete policy.** Select, insert and update were all covered, so
-nothing looked wrong until an owner deleted a team and the row stayed. PostgREST
-reports a policy-blocked delete as a success with zero rows, so the app showed no
-error either. This is what pushed us to the `.select().maybeSingle()` pattern on
-every mutation and to the impersonation check below, which now covers deletes:
-
-```sql
-begin;
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"<a member, not the owner>","role":"authenticated"}';
-delete from public.teams where id = '<someone elses team>' returning id;  -- 0 rows
-rollback;
-```
+**Deleting a team was never permitted, and never said so.** Reading, creating and
+editing were all covered, so nothing looked wrong until an owner deleted a team
+and it stayed. A blocked delete comes back as a success that changed nothing, so
+the app reported no error either. This is what pushed us to read the affected
+record back on every mutation, and to extend the impersonation check to cover
+deletes: act as a member who is not the owner, try to delete someone else's team,
+confirm nothing is removed, roll back.
 
 **The delete dialog blanked out mid-dismiss.** Clearing the target closed the
 dialog, but the fade-out still had frames to render, so the copy fell back to
 "This team, its 0 members" with an empty code for a few hundred milliseconds. The
 dialogs now render from the last target and use a separate visibility flag.
 
-**Deleting a cohort flashed "Cohort not found".** The row left state before the
+**Deleting a cohort flashed "Cohort not found".** It left state before the
 navigation ran, so the detail screen rendered its empty case on the way out. The
 screen now holds a spinner once a delete is in flight.
 
@@ -355,19 +341,17 @@ impersonation transaction shown above rather than with fixtures.
 
 ## M3.12 Security model
 
-| Table | Read | Write |
-| --- | --- | --- |
-| `profiles` | Signed-in users | Own row only |
-| `teams` | Owner and members | Owner updates and deletes; anyone creates their own |
-| `team_members` | Signed-in users | Join and leave as yourself only |
-| `cohorts` | Organiser and members | Organiser updates and deletes |
-| `cohort_members` | Cohort participants | Join and leave as yourself only |
-| `compatibility_results` | Team members | Team members |
-| `ai_coach_advice` | Edge Function only | Edge Function only |
+Access is decided on the server everywhere, and the shape is the same
+throughout. You can read a team or cohort if you own it or belong to it. You can
+edit or delete it only if you created it. You can add or remove yourself from a
+roster, and nobody else. A saved compatibility report is visible to the team it
+describes. Cached coach advice is reachable only through the Edge Function, never
+from the client.
 
-Two rules hold across the app. Joining happens through `SECURITY DEFINER`
-functions so codes are never enumerable, and every privileged action is enforced
-in a policy, with the client-side check deciding only what to draw.
+Two rules hold across the app. Joining goes through trusted server-side routines,
+so codes are never enumerable by a signed-in stranger. And every privileged
+action is enforced on the server, with the client-side check deciding only what
+to draw.
 
 ## M3.13 Running it
 
@@ -1610,18 +1594,17 @@ The three below came out of the Milestone 3 work and now apply across the app.
 
 ## 18.8 The server decides, the client only draws
 
-Every privileged action is enforced in a row-level security policy or a
-`SECURITY DEFINER` function. Owner checks in the UI choose which buttons to
-render; they never grant anything. Deleting a team, rotating a join code and
-editing a cohort all pass through a policy that would refuse the same call made
-by hand. The AI coach follows the rule too: the Edge Function verifies the JWT
-and re-checks team membership before it spends a token.
+Every privileged action is enforced on the server. Owner checks in the UI choose
+which buttons to render; they never grant anything. Deleting a team, rotating a
+join code and editing a cohort all pass through a check that would refuse the
+same call made by hand. The AI coach follows the rule too: the Edge Function
+verifies the caller and re-checks team membership before it spends a token.
 
 ## 18.9 Fail loudly, in one place
 
-An unauthorised update returns zero rows rather than an error, so every mutation
-selects the row back and treats an empty result as a refusal with a readable
-message. The same reflex shows up in the UI: blocked splits return a reason
+An unauthorised update comes back as a success that changed nothing rather than
+as an error, so every mutation reads the affected record back and treats an empty
+result as a refusal with a readable message. The same reflex shows up in the UI: blocked splits return a reason
 instead of throwing, coach failures are mapped to sentences by
 `describeCoachError`, and a missing Edge Function degrades one card instead of
 the screen. Silent success on a destructive action is the failure mode we most
@@ -1719,7 +1702,7 @@ what was actually built, which is in
 | AI coach explanations (21.1) | Built, with the deterministic model still doing the matching |
 | Supabase-linked AI implementation (21.2) | Built as described, plus caching and a membership check in the Edge Function |
 | Automated scoring and formation tests (21.3) | Built, 84 tests across 13 files |
-| Migration for saved AI advice (21.3) | Built, `ai_coach_advice` |
+| Storage for saved AI advice (21.3) | Built, cached server-side |
 | More matching inputs (21.4) | Availability collected and reported, not yet a matching input |
 | Instructor or organiser mode (21.5) | Built as cohort mode, without roster upload or support flagging |
 
