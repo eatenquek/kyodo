@@ -1,28 +1,54 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton, AppTextInput } from '@/components/ui';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 import { parseInviteInput } from '@/services/teams/inviteLink';
+import { TargetSizeStepper } from '@/components/cohorts/TargetSizeStepper';
+import { SchoolPicker } from '@/components/cohorts/SchoolPicker';
+import { universities, universityLogos } from '@/constants/universities';
+import { Cohort } from '@/types/domain';
 
-export type CohortFormMode = 'create' | 'join' | null;
+export type CohortFormMode = 'create' | 'join' | 'edit' | null;
 
-const groupSizeOptions = [2, 3, 4, 5, 6];
+function findSchool(slug?: string) {
+  const match = universities.find((uni) => uni.slug === slug);
+  return match ? { slug: match.slug, name: match.name } : null;
+}
 
-export function CohortFormModal({ mode, onClose }: { mode: CohortFormMode; onClose: () => void }) {
-  const { createCohort, joinCohort } = useAppState();
+export function CohortFormModal({
+  mode,
+  cohort,
+  onClose
+}: {
+  mode: CohortFormMode;
+  cohort?: Cohort | null;
+  onClose: () => void;
+}) {
+  const { createCohort, updateCohort, joinCohort } = useAppState();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [targetGroupSize, setTargetGroupSize] = useState(4);
+  const [school, setSchool] = useState<{ slug: string; name: string } | null>(null);
+  const [schoolPickerVisible, setSchoolPickerVisible] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const creating = mode === 'create';
+  const editing = mode === 'edit';
 
+  // prefill when the organiser opens the edit sheet, reset once it closes
   useEffect(() => {
     setError('');
-  }, [mode]);
+    if (mode === 'edit' && cohort) {
+      setName(cohort.name);
+      setDescription(cohort.description ?? '');
+      setSchool(findSchool(cohort.school));
+      return;
+    }
+    if (!mode) setSchool(null);
+  }, [mode, cohort?.id]);
 
   function close() {
     if (!loading) onClose();
@@ -33,14 +59,23 @@ export function CohortFormModal({ mode, onClose }: { mode: CohortFormMode; onClo
       setLoading(true);
       setError('');
 
-      if (creating) {
+      if (creating || editing) {
         if (!name.trim()) {
           setError('Give the cohort a name, such as your module or tutorial group.');
           return;
         }
-        await createCohort(name, description, targetGroupSize);
-        setName('');
-        setDescription('');
+        if (!school) {
+          setError('Pick the school this cohort belongs to.');
+          return;
+        }
+        if (editing && cohort) {
+          await updateCohort(cohort.id, name, description, school.slug);
+        } else {
+          await createCohort(name, description, targetGroupSize, school.slug);
+          setName('');
+          setDescription('');
+          setSchool(null);
+        }
       } else {
         if (joinCode.length !== 6) {
           setError('Enter the 6-character cohort code.');
@@ -69,15 +104,17 @@ export function CohortFormModal({ mode, onClose }: { mode: CohortFormMode; onClo
           <View style={styles.handle} />
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>{creating ? 'NEW COHORT' : 'COHORT INVITE'}</Text>
-              <Text style={styles.title}>{creating ? 'Create a cohort' : 'Join a cohort'}</Text>
+              <Text style={styles.eyebrow}>{editing ? 'EDIT COHORT' : creating ? 'NEW COHORT' : 'COHORT INVITE'}</Text>
+              <Text style={styles.title}>
+                {editing ? 'Edit this cohort' : creating ? 'Create a cohort' : 'Join a cohort'}
+              </Text>
             </View>
             <Pressable accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
               <Ionicons name="close" size={23} color={colors.textPrimary} />
             </Pressable>
           </View>
 
-          {creating ? (
+          {creating || editing ? (
             <View style={styles.fields}>
               <AppTextInput
                 label="Cohort name"
@@ -95,26 +132,32 @@ export function CohortFormModal({ mode, onClose }: { mode: CohortFormMode; onClo
                 onChangeText={setDescription}
               />
               <View style={styles.sizeField}>
-                <Text style={styles.label}>Target team size</Text>
-                <Text style={styles.help}>You can change this later before running the split.</Text>
-                <View style={styles.sizeRow}>
-                  {groupSizeOptions.map((size) => {
-                    const selected = size === targetGroupSize;
-                    return (
-                      <Pressable
-                        key={size}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={`Target team size ${size}`}
-                        onPress={() => setTargetGroupSize(size)}
-                        style={({ pressed }) => [styles.sizeChip, selected && styles.sizeChipActive, pressed && styles.pressed]}
-                      >
-                        <Text style={[styles.sizeChipText, selected && styles.sizeChipTextActive]}>{size}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <Text style={styles.label}>School</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose a school"
+                  onPress={() => setSchoolPickerVisible(true)}
+                  style={({ pressed }) => [styles.schoolField, pressed && styles.pressed]}
+                >
+                  {school ? (
+                    <>
+                      <Image source={universityLogos[school.slug]} style={styles.schoolLogo} resizeMode="contain" />
+                      <Text numberOfLines={1} style={styles.schoolName}>{school.name}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.schoolPlaceholder}>Pick your school</Text>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                </Pressable>
               </View>
+
+              {creating ? (
+                <View style={styles.sizeField}>
+                  <Text style={styles.label}>Target team size</Text>
+                  <Text style={styles.help}>You can change this later before running the split.</Text>
+                  <TargetSizeStepper value={targetGroupSize} max={12} onChange={setTargetGroupSize} />
+                </View>
+              ) : null}
             </View>
           ) : (
             <View style={styles.fields}>
@@ -135,13 +178,19 @@ export function CohortFormModal({ mode, onClose }: { mode: CohortFormMode; onClo
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <AppButton
-            title={creating ? 'Create cohort' : 'Join cohort'}
+            title={editing ? 'Save changes' : creating ? 'Create cohort' : 'Join cohort'}
             loading={loading}
-            disabled={creating ? !name.trim() : joinCode.length !== 6}
+            disabled={creating || editing ? !name.trim() || !school : joinCode.length !== 6}
             onPress={() => void submit()}
           />
         </View>
       </KeyboardAvoidingView>
+
+      <SchoolPicker
+        visible={schoolPickerVisible}
+        onClose={() => setSchoolPickerVisible(false)}
+        onSelect={(slug, schoolName) => setSchool({ slug, name: schoolName })}
+      />
     </Modal>
   );
 }
@@ -175,22 +224,23 @@ const styles = StyleSheet.create({
   },
   fields: { gap: 14 },
   sizeField: { gap: 6 },
-  label: { color: colors.textPrimary, fontSize: 13, fontWeight: '800' },
-  help: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
-  sizeRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  sizeChip: {
-    minWidth: 44,
-    minHeight: 40,
-    borderRadius: 20,
+  schoolField: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8
   },
-  sizeChipActive: { borderColor: colors.accent, backgroundColor: colors.accent },
-  sizeChipText: { color: colors.textSecondary, fontSize: 14, fontWeight: '900' },
-  sizeChipTextActive: { color: '#FFFFFF' },
+  schoolLogo: { width: 28, height: 28 },
+  schoolName: { flex: 1, color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
+  schoolPlaceholder: { flex: 1, color: colors.textSecondary, fontSize: 14 },
+  label: { color: colors.textPrimary, fontSize: 13, fontWeight: '800' },
+  help: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   error: { color: colors.error, fontSize: 12, fontWeight: '600' },
   pressed: { opacity: 0.75 }
 });

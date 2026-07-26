@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton, DimensionBar, PageHeader, Screen } from '@/components/ui';
 import { ProfileFormModal } from '@/components/profile/ProfileFormModal';
+import { Avatar } from '@/components/Avatar';
 import { dimensionDescriptions, dimensionLabels, questions } from '@/constants/questions';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
@@ -23,7 +24,6 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [scoreDetailsVisible, setScoreDetailsVisible] = useState(false);
   const displayName = profile?.fullName || user?.email?.split('@')[0] || 'KyodoAI member';
-  const initial = displayName.slice(0, 1).toUpperCase();
   const answeredCount = questions.filter((question) => Boolean(answers[question.id])).length;
   const questionnaireAction = answeredCount
     ? `Resume questionnaire (${answeredCount}/${questions.length})`
@@ -49,9 +49,7 @@ export default function ProfileScreen() {
         />
 
         <View style={styles.identityCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </View>
+          <Avatar name={displayName} uri={profile?.avatar} size={68} color={colors.accent} textColor="#FFFFFF" />
           <View style={styles.identityCopy}>
             <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
             <Text numberOfLines={1} style={styles.email}>{user?.email || 'Local account'}</Text>
@@ -132,7 +130,7 @@ export default function ProfileScreen() {
               </View>
 
               <Text style={styles.resultDisclaimer}>
-                These are flexible tendencies based on your answers—not fixed personality labels or predictions.
+                These are flexible tendencies based on your answers, not fixed personality labels or predictions.
               </Text>
             </View>
 
@@ -269,20 +267,11 @@ const styles = StyleSheet.create({
   identityCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 15,
     backgroundColor: colors.accentSoft,
     borderRadius: 18,
     padding: 18
   },
-  avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accent,
-    marginRight: 15
-  },
-  avatarText: { color: '#FFFFFF', fontSize: 27, fontWeight: '900' },
   identityCopy: { flex: 1 },
   name: { color: colors.textPrimary, fontSize: 21, fontWeight: '900', letterSpacing: -0.4 },
   email: { color: colors.textSecondary, fontSize: 12, marginTop: 3 },

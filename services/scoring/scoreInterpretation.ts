@@ -14,7 +14,7 @@ const bands: Array<{ min: number } & ScoreBand> = [
     min: 72,
     id: 'strong',
     label: 'Strong',
-    hint: 'Looks like a shared starting point — worth confirming it holds under deadline pressure.'
+    hint: 'Looks like a shared starting point, worth confirming it holds under deadline pressure.'
   },
   {
     min: 58,
@@ -39,7 +39,7 @@ export function describeScoreBand(score: number): ScoreBand {
 export function scoreRange(score: number, spread = 7) {
   const low = Math.max(0, Math.round(score) - spread);
   const high = Math.min(100, Math.round(score) + spread);
-  return `${low}–${high}`;
+  return `${low}-${high}`;
 }
 
 export const scoreCaveat =

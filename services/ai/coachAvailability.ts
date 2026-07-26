@@ -31,7 +31,7 @@ export function getCoachAvailability({
   if (completedResultCount < memberCount) {
     return {
       canGenerate: true,
-      reason: "Some members haven't finished their profile yet — Kyodo will coach from the ones that are ready."
+      reason: "Some members haven't finished their profile yet. Kyodo will coach from the ones that are ready."
     };
   }
 

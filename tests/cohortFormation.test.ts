@@ -51,6 +51,20 @@ describe('planCohortFormation', () => {
     expect(outcome.result.groupSizes.reduce((a, b) => a + b, 0)).toBe(9);
   });
 
+  it('leaves the organiser out of the split and the counts', () => {
+    const organiser = student('org', 'Tutor');
+    const roster = [organiser, ...readyRoster(9)];
+
+    const outcome = planCohortFormation(cohort, roster, 3, 'org');
+    expect(outcome.status).toBe('ok');
+    if (outcome.status !== 'ok') throw new Error('expected ok');
+
+    const assigned = outcome.result.groups.flatMap((group) => group.members);
+    expect(assigned).not.toContain('Tutor');
+    expect(assigned.length).toBe(9);
+    expect(outcome.result.readyCount).toBe(9);
+  });
+
   it('excludes students without a result but names them', () => {
     const roster = [...readyRoster(8), student('late', 'Late Student')];
     roster[8].result = undefined;

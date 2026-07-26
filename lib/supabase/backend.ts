@@ -34,6 +34,7 @@ type ProfileRow = {
   preferred_role: string | null;
   bio: string | null;
   availability: AvailabilityBlock[] | null;
+  avatar: string | null;
   onboarding_completed: boolean | null;
 };
 
@@ -161,6 +162,7 @@ function mapProfile(row: ProfileRow): Profile {
     preferredRole: row.preferred_role ?? 'Flexible',
     bio: row.bio ?? undefined,
     availability: row.availability ?? undefined,
+    avatar: row.avatar ?? undefined,
     onboardingCompleted: Boolean(row.onboarding_completed)
   };
 }
@@ -303,7 +305,8 @@ export async function loadBackendSnapshot(userId: string, email: string): Promis
           name: memberProfile?.fullName ?? (member.user_id === userId ? email : 'Teammate'),
           role: memberProfile?.preferredRole ?? member.role,
           result: latestResults.get(member.user_id),
-          availability: memberProfile?.availability
+          availability: memberProfile?.availability,
+          avatar: memberProfile?.avatar
         };
       })
   }));
@@ -343,6 +346,7 @@ export async function saveBackendProfile(userId: string, profile: Omit<Profile, 
     preferred_role: profile.preferredRole,
     bio: profile.bio,
     availability: profile.availability ?? [],
+    avatar: profile.avatar ?? null,
     onboarding_completed: true,
     updated_at: new Date().toISOString()
   });
@@ -408,6 +412,37 @@ export async function createBackendTeam(userId: string, name: string, projectNam
   if (memberError) throwBackendError(memberError);
 
   return createdTeam.id;
+}
+
+// owner-only, same as the join code rotation
+export async function updateBackendTeam(
+  teamId: string,
+  fields: { name: string; projectName: string; description: string }
+) {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('teams')
+    .update({
+      name: fields.name.trim(),
+      project_name: fields.projectName.trim() || null,
+      description: fields.description.trim() || null
+    })
+    .eq('id', teamId)
+    .select(teamColumns)
+    .maybeSingle<TeamRow>();
+
+  if (error) throwBackendError(error);
+  if (!data) throw new Error('Only the team owner can edit this team.');
+  return data;
+}
+
+// members, compatibility reports and coach advice cascade off the team row
+export async function deleteBackendTeam(teamId: string) {
+  const client = requireClient();
+  const { data, error } = await client.from('teams').delete().eq('id', teamId).select('id').maybeSingle<{ id: string }>();
+
+  if (error) throwBackendError(error);
+  if (!data) throw new Error('Only the team owner can delete this team.');
 }
 
 // joins via an rpc so the client never has to read the teams table directly
@@ -489,10 +524,11 @@ type CohortRow = {
   join_code: string;
   created_by: string;
   target_group_size: number;
+  school: string | null;
   created_at: string;
 };
 
-const cohortColumns = 'id,name,description,join_code,created_by,target_group_size,created_at';
+const cohortColumns = 'id,name,description,join_code,created_by,target_group_size,school,created_at';
 
 export async function loadBackendCohorts(userId: string): Promise<Cohort[]> {
   const client = requireClient();
@@ -534,6 +570,7 @@ export async function loadBackendCohorts(userId: string): Promise<Cohort[]> {
     joinCode: row.join_code,
     createdBy: row.created_by,
     targetGroupSize: row.target_group_size,
+    school: row.school ?? undefined,
     isOrganiser: row.created_by === userId,
     memberCount: counts.get(row.id) ?? 0,
     createdAt: row.created_at
@@ -577,12 +614,13 @@ export async function loadBackendCohortRoster(cohortId: string): Promise<CohortM
       name: profile?.fullName ?? 'Student',
       role: profile?.preferredRole ?? row.role,
       result: latestResults.get(row.user_id),
-      availability: profile?.availability
+      availability: profile?.availability,
+      avatar: profile?.avatar
     };
   });
 }
 
-export async function createBackendCohort(userId: string, name: string, description: string, targetGroupSize: number) {
+export async function createBackendCohort(userId: string, name: string, description: string, targetGroupSize: number, school: string) {
   const client = requireClient();
   let joinCode = generateJoinCode();
   let created: CohortRow | null = null;
@@ -595,7 +633,8 @@ export async function createBackendCohort(userId: string, name: string, descript
         description: description.trim() || null,
         join_code: joinCode,
         created_by: userId,
-        target_group_size: targetGroupSize
+        target_group_size: targetGroupSize,
+        school
       })
       .select(cohortColumns)
       .single<CohortRow>();
@@ -645,4 +684,40 @@ export async function updateBackendCohortTargetSize(cohortId: string, targetGrou
   if (error) throwBackendError(error);
   if (!data) throw new Error('Only the cohort organiser can change the target group size.');
   return data.target_group_size;
+}
+
+// organiser-only, enforced by the cohorts update policy
+export async function updateBackendCohort(
+  cohortId: string,
+  fields: { name: string; description: string; school: string }
+) {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('cohorts')
+    .update({
+      name: fields.name.trim(),
+      description: fields.description.trim() || null,
+      school: fields.school
+    })
+    .eq('id', cohortId)
+    .select(cohortColumns)
+    .maybeSingle<CohortRow>();
+
+  if (error) throwBackendError(error);
+  if (!data) throw new Error('Only the cohort organiser can edit this cohort.');
+  return data;
+}
+
+// the roster cascades off the cohort row
+export async function deleteBackendCohort(cohortId: string) {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('cohorts')
+    .delete()
+    .eq('id', cohortId)
+    .select('id')
+    .maybeSingle<{ id: string }>();
+
+  if (error) throwBackendError(error);
+  if (!data) throw new Error('Only the cohort organiser can delete this cohort.');
 }

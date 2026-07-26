@@ -30,15 +30,18 @@ export type CohortFormationOutcome =
 export function planCohortFormation(
   cohort: Pick<Cohort, 'id' | 'name'>,
   members: CohortMember[],
-  targetGroupSize: number
+  targetGroupSize: number,
+  organiserId?: string
 ): CohortFormationOutcome {
-  const ready = members.filter((member) => Boolean(member.result));
-  const pendingNames = members.filter((member) => !member.result).map((member) => member.name || 'Student');
+  // the organiser runs the split, they aren't placed into a team
+  const students = organiserId ? members.filter((member) => member.id !== organiserId) : members;
+  const ready = students.filter((member) => Boolean(member.result));
+  const pendingNames = students.filter((member) => !member.result).map((member) => member.name || 'Student');
 
   if (ready.length < 4) {
     return {
       status: 'blocked',
-      reason: `Need at least 4 completed work-style profiles to suggest groups. ${ready.length} of ${members.length} are ready.`,
+      reason: `Need at least 4 completed work-style profiles to suggest groups. ${ready.length} of ${students.length} are ready.`,
       readyCount: ready.length,
       pendingNames
     };

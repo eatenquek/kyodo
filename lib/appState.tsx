@@ -9,10 +9,14 @@ import {
   backendEnabled,
   createBackendCohort,
   createBackendTeam,
+  deleteBackendCohort,
+  deleteBackendTeam,
   joinBackendCohort,
   loadBackendCohortRoster,
   loadBackendCohorts,
+  updateBackendCohort,
   updateBackendCohortTargetSize,
+  updateBackendTeam,
   joinBackendTeam,
   leaveBackendTeam,
   loadBackendSnapshot,
@@ -51,12 +55,16 @@ type AppContextValue = State & {
   saveAnswer: (answer: Answer) => Promise<void>;
   completeQuestionnaire: () => Promise<PersonalityResult>;
   createTeam: (name: string, projectName: string, description: string) => Promise<Team>;
+  updateTeam: (teamId: string, name: string, projectName: string, description: string) => Promise<void>;
+  deleteTeam: (teamId: string) => Promise<void>;
   joinTeam: (joinCode: string) => Promise<boolean>;
   leaveTeam: (teamId: string) => Promise<boolean>;
   rotateJoinCode: (teamId: string) => Promise<string>;
   cohorts: Cohort[];
   loadCohorts: () => Promise<void>;
-  createCohort: (name: string, description: string, targetGroupSize: number) => Promise<void>;
+  createCohort: (name: string, description: string, targetGroupSize: number, school: string) => Promise<void>;
+  updateCohort: (cohortId: string, name: string, description: string, school: string) => Promise<void>;
+  deleteCohort: (cohortId: string) => Promise<void>;
   joinCohort: (joinCode: string) => Promise<boolean>;
   loadCohortRoster: (cohortId: string) => Promise<CohortMember[]>;
   setCohortTargetSize: (cohortId: string, size: number) => Promise<void>;
@@ -235,7 +243,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       name: state.profile?.fullName || state.user?.email || 'You',
       role: state.profile?.preferredRole || 'Member',
       result: state.result ?? undefined,
-      availability: state.profile?.availability
+      availability: state.profile?.availability,
+      avatar: state.profile?.avatar
     });
     const userTeams = () => state.teams.filter((team) => team.members.some((member) => member.id === currentUserId));
 
@@ -338,7 +347,8 @@ export function AppProvider({ children }: PropsWithChildren) {
                     ...member,
                     name: nextProfile.fullName,
                     role: nextProfile.preferredRole,
-                    availability: nextProfile.availability
+                    availability: nextProfile.availability,
+                    avatar: nextProfile.avatar
                   }
                 : member
             )
@@ -404,6 +414,48 @@ export function AppProvider({ children }: PropsWithChildren) {
         };
         setState((current) => ({ ...current, teams: [...current.teams, team], activeTeamId: team.id }));
         return team;
+      },
+      async updateTeam(teamId, name, projectName, description) {
+        const team = state.teams.find((item) => item.id === teamId);
+        if (!team) throw new Error('That team could not be found.');
+        if (team.createdBy && team.createdBy !== currentUserId) {
+          throw new Error('Only the team owner can edit this team.');
+        }
+        if (!name.trim()) throw new Error('Give your team a name first.');
+
+        if (backendEnabled) await updateBackendTeam(teamId, { name, projectName, description });
+        setState((current) => ({
+          ...current,
+          teams: current.teams.map((item) =>
+            item.id === teamId
+              ? {
+                  ...item,
+                  name: name.trim(),
+                  projectName: projectName.trim() || undefined,
+                  description: description.trim() || undefined
+                }
+              : item
+          )
+        }));
+      },
+      async deleteTeam(teamId) {
+        const team = state.teams.find((item) => item.id === teamId);
+        if (!team) throw new Error('That team could not be found.');
+        if (team.createdBy && team.createdBy !== currentUserId) {
+          throw new Error('Only the team owner can delete this team.');
+        }
+
+        if (backendEnabled) await deleteBackendTeam(teamId);
+        setState((current) => {
+          const teams = current.teams.filter((item) => item.id !== teamId);
+          const nextOwn = teams.find((item) => item.members.some((member) => member.id === currentUserId));
+          return {
+            ...current,
+            teams,
+            activeTeamId: current.activeTeamId === teamId ? nextOwn?.id : current.activeTeamId,
+            compatibility: Object.fromEntries(Object.entries(current.compatibility).filter(([id]) => id !== teamId))
+          };
+        });
       },
       async joinTeam(joinCode) {
         if (backendEnabled && state.user) {
@@ -478,11 +530,27 @@ export function AppProvider({ children }: PropsWithChildren) {
         const cohorts = await loadBackendCohorts(state.user.id);
         setCohorts(cohorts);
       },
-      async createCohort(name, description, targetGroupSize) {
+      async createCohort(name, description, targetGroupSize, school) {
         if (!backendEnabled || !state.user) {
           throw new Error('Cohorts need the Supabase backend. Add your project config to use them.');
         }
-        await createBackendCohort(state.user.id, name, description, targetGroupSize);
+        await createBackendCohort(state.user.id, name, description, targetGroupSize, school);
+        setCohorts(await loadBackendCohorts(state.user.id));
+      },
+      async updateCohort(cohortId, name, description, school) {
+        if (!backendEnabled || !state.user) {
+          throw new Error('Cohorts need the Supabase backend. Add your project config to use them.');
+        }
+        if (!name.trim()) throw new Error('Give the cohort a name first.');
+        if (!school) throw new Error('Pick the school this cohort belongs to.');
+        await updateBackendCohort(cohortId, { name, description, school });
+        setCohorts(await loadBackendCohorts(state.user.id));
+      },
+      async deleteCohort(cohortId) {
+        if (!backendEnabled || !state.user) {
+          throw new Error('Cohorts need the Supabase backend. Add your project config to use them.');
+        }
+        await deleteBackendCohort(cohortId);
         setCohorts(await loadBackendCohorts(state.user.id));
       },
       async joinCohort(joinCode) {

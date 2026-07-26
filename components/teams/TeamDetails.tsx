@@ -10,6 +10,7 @@ import { describeCoachError } from '@/services/ai/coachErrors';
 import { suggestBestTeamFormation, TeamFormationSuggestion } from '@/services/scoring/teamFormation';
 import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
 import { buildInvitePath } from '@/services/teams/inviteLink';
+import { Avatar } from '@/components/Avatar';
 import { AvailabilityOverlap, calculateAvailabilityOverlap } from '@/services/scoring/availability';
 import { describeScoreBand, scoreCaveat, scoreRange } from '@/services/scoring/scoreInterpretation';
 import { CompatibilityResult, Team, TeamMember } from '@/types/domain';
@@ -34,10 +35,13 @@ export function TeamDetails({
   insightsLoading,
   insightsError = '',
   canRotateJoinCode = false,
+  isOwner = false,
   rotating = false,
   rotateError = '',
   onRotateJoinCode,
   onGenerateInsights,
+  onEdit,
+  onDelete,
   onLeave
 }: {
   team: Team;
@@ -46,10 +50,13 @@ export function TeamDetails({
   insightsLoading: boolean;
   insightsError?: string;
   canRotateJoinCode?: boolean;
+  isOwner?: boolean;
   rotating?: boolean;
   rotateError?: string;
   onRotateJoinCode?: () => void;
   onGenerateInsights: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   onLeave: () => void;
 }) {
   const completedProfileCount = team.members.filter((member) => member.result).length;
@@ -167,6 +174,18 @@ export function TeamDetails({
         <Ionicons name="person-add-outline" size={15} color="#FFFFFF" />
         <Text style={styles.inviteText}>Invite teammates</Text>
       </Pressable>
+
+      {isOwner ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${team.name}`}
+          onPress={onEdit}
+          style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+        >
+          <Ionicons name="create-outline" size={15} color={palette.accentDark} />
+          <Text style={styles.editText}>Edit team details</Text>
+        </Pressable>
+      ) : null}
       {inviteNotice ? <Text style={styles.inviteNotice}>{inviteNotice}</Text> : null}
 
       {rotateError ? <Text style={styles.rotateError}>{rotateError}</Text> : null}
@@ -283,6 +302,18 @@ export function TeamDetails({
         <Ionicons name="exit-outline" size={18} color={palette.error} />
         <Text style={styles.leaveText}>Leave this team</Text>
       </Pressable>
+
+      {isOwner ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${team.name}`}
+          onPress={onDelete}
+          style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}
+        >
+          <Ionicons name="trash-outline" size={17} color={palette.error} />
+          <Text style={styles.leaveText}>Delete this team</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -300,12 +331,11 @@ function MemberRow({
   onToggle: () => void;
 }) {
   const workstyle = useMemo(() => (member.result ? buildWorkstyleProfile(member.result) : null), [member.result]);
-  const initial = (member.name || 'Teammate').slice(0, 1).toUpperCase();
 
   const row = (
     <>
-      <View style={[styles.avatar, { backgroundColor: color }]}>
-        <Text style={styles.avatarText}>{initial}</Text>
+      <View style={styles.avatarSlot}>
+        <Avatar name={member.name || 'Teammate'} uri={member.avatar} size={38} color={color} />
       </View>
       <View style={styles.memberCopy}>
         <Text numberOfLines={1} style={styles.memberName}>{member.name}</Text>
@@ -347,7 +377,7 @@ function MemberRow({
           <Text style={styles.memberDetailBody}>{workstyle.primary.description}</Text>
           <InsightSection title="What to know when working together" items={workstyle.teammateNotes} />
           <Text style={styles.memberDetailDisclaimer}>
-            Flexible work-style signals from {member.name.split(' ')[0]}&apos;s own answers — not a personality rating.
+            Flexible work-style signals from {member.name.split(' ')[0]}&apos;s own answers, not a personality rating.
           </Text>
         </View>
       ) : null}
@@ -657,6 +687,19 @@ const styles = StyleSheet.create({
     marginTop: 14
   },
   inviteText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  editButton: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    marginTop: 9
+  },
+  editText: { color: palette.accentDark, fontSize: 13, fontWeight: '800' },
   inviteNotice: { color: palette.accentDark, fontSize: 11, lineHeight: 16, marginTop: 8, textAlign: 'center' },
   rotateButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 30, paddingHorizontal: 4 },
   rotateText: { color: palette.accentDark, fontSize: 11, fontWeight: '800' },
@@ -690,8 +733,7 @@ const styles = StyleSheet.create({
   memberDetailTendency: { color: palette.accentDark, fontSize: 12, fontWeight: '900' },
   memberDetailBody: { color: palette.secondary, fontSize: 12, lineHeight: 18 },
   memberDetailDisclaimer: { color: palette.secondary, fontSize: 10, lineHeight: 15, fontStyle: 'italic' },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  avatarText: { color: '#17392F', fontSize: 13, fontWeight: '900' },
+  avatarSlot: { marginRight: 10 },
   memberCopy: { flex: 1, paddingRight: 8 },
   memberName: { color: palette.text, fontSize: 14, fontWeight: '700' },
   memberRole: { color: palette.secondary, fontSize: 11, marginTop: 3 },

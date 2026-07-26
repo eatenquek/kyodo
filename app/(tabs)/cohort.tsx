@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
 import { CohortFormModal, CohortFormMode } from '@/components/cohorts/CohortFormModal';
 import { useAppState } from '@/lib/appState';
+import { universityLogos } from '@/constants/universities';
 
 const palette = {
   background: '#FBFCFA',
@@ -75,7 +76,11 @@ export default function CohortScreen() {
                 style={({ pressed }) => [styles.cohortCard, pressed && styles.pressed]}
               >
                 <View style={styles.cohortBadge}>
-                  <Ionicons name="school-outline" size={22} color={palette.accentDark} />
+                  {cohort.school && universityLogos[cohort.school] ? (
+                    <Image source={universityLogos[cohort.school]} style={styles.cohortLogo} resizeMode="contain" />
+                  ) : (
+                    <Ionicons name="school-outline" size={22} color={palette.accentDark} />
+                  )}
                 </View>
                 <View style={styles.cohortCopy}>
                   <Text numberOfLines={1} style={styles.cohortName}>{cohort.name}</Text>
@@ -174,6 +179,7 @@ const styles = StyleSheet.create({
     borderColor: palette.border,
     backgroundColor: palette.surface
   },
+  cohortLogo: { width: 30, height: 30 },
   cohortBadge: {
     width: 44,
     height: 44,

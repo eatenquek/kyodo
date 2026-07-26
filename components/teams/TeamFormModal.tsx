@@ -13,11 +13,20 @@ import { AppButton, AppTextInput } from '@/components/ui';
 import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 import { parseInviteInput } from '@/services/teams/inviteLink';
+import { Team } from '@/types/domain';
 
-export type TeamFormMode = 'create' | 'join' | null;
+export type TeamFormMode = 'create' | 'join' | 'edit' | null;
 
-export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: () => void }) {
-  const { createTeam, joinTeam } = useAppState();
+export function TeamFormModal({
+  mode,
+  team,
+  onClose
+}: {
+  mode: TeamFormMode;
+  team?: Team | null;
+  onClose: () => void;
+}) {
+  const { createTeam, updateTeam, joinTeam } = useAppState();
   const [teamName, setTeamName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [description, setDescription] = useState('');
@@ -25,10 +34,17 @@ export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const creating = mode === 'create';
+  const editing = mode === 'edit';
 
+  // prefill when the owner opens the edit sheet
   useEffect(() => {
     setError('');
-  }, [mode]);
+    if (mode === 'edit' && team) {
+      setTeamName(team.name);
+      setProjectName(team.projectName ?? '');
+      setDescription(team.description ?? '');
+    }
+  }, [mode, team?.id]);
 
   function close() {
     if (!loading) onClose();
@@ -50,6 +66,25 @@ export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: 
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create this team.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitEditTeam() {
+    if (!team) return;
+    if (!teamName.trim()) {
+      setError('Give your team a name first.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      await updateTeam(team.id, teamName, projectName, description);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save these changes.');
     } finally {
       setLoading(false);
     }
@@ -93,15 +128,17 @@ export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: 
           <View style={styles.modalHandle} />
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.modalEyebrow}>{creating ? 'NEW TEAM' : 'TEAM INVITE'}</Text>
-              <Text style={styles.modalTitle}>{creating ? 'Create a team' : 'Join with a code'}</Text>
+              <Text style={styles.modalEyebrow}>{editing ? 'EDIT TEAM' : creating ? 'NEW TEAM' : 'TEAM INVITE'}</Text>
+              <Text style={styles.modalTitle}>
+                {editing ? 'Edit this team' : creating ? 'Create a team' : 'Join with a code'}
+              </Text>
             </View>
             <Pressable accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
               <Ionicons name="close" size={23} color={colors.textPrimary} />
             </Pressable>
           </View>
 
-          {creating ? (
+          {creating || editing ? (
             <View style={styles.formFields}>
               <AppTextInput
                 label="Team name"
@@ -137,10 +174,16 @@ export function TeamFormModal({ mode, onClose }: { mode: TeamFormMode; onClose: 
 
           {error ? <Text style={styles.formError}>{error}</Text> : null}
           <AppButton
-            title={creating ? 'Create team' : 'Join team'}
+            title={editing ? 'Save changes' : creating ? 'Create team' : 'Join team'}
             loading={loading}
-            disabled={creating ? !teamName.trim() : joinCode.length !== 6}
-            onPress={creating ? () => void submitCreateTeam() : () => void submitJoinTeam()}
+            disabled={creating || editing ? !teamName.trim() : joinCode.length !== 6}
+            onPress={
+              editing
+                ? () => void submitEditTeam()
+                : creating
+                  ? () => void submitCreateTeam()
+                  : () => void submitJoinTeam()
+            }
           />
         </View>
       </KeyboardAvoidingView>

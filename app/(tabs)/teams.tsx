@@ -25,6 +25,7 @@ const palette = {
 export default function TeamsScreen() {
   const {
     compatibility,
+    deleteTeam,
     generateCompatibility,
     getActiveTeam,
     getUserTeams,
@@ -49,6 +50,20 @@ export default function TeamsScreen() {
   const [teamToLeave, setTeamToLeave] = useState<Team | null>(null);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
+  const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const isOwner = Boolean(activeTeam?.createdBy) && activeTeam?.createdBy === user?.id;
+
+  // the dialogs fade out after the team is gone, so keep the last target to
+  // render from or the copy blanks out mid-dismiss
+  const lastDeleteTarget = useRef<Team | null>(null);
+  const lastLeaveTarget = useRef<Team | null>(null);
+  if (teamToDelete) lastDeleteTarget.current = teamToDelete;
+  if (teamToLeave) lastLeaveTarget.current = teamToLeave;
+  const deleteTarget = teamToDelete ?? lastDeleteTarget.current;
+  const leaveTarget = teamToLeave ?? lastLeaveTarget.current;
 
   // refetch on focus so a teammate's finished profile shows up without a reload.
   // kept in a ref because refresh changes identity every render and would loop
@@ -83,6 +98,21 @@ export default function TeamsScreen() {
       setLeaveError(err instanceof Error ? err.message : 'Could not leave this team.');
     } finally {
       setLeaveLoading(false);
+    }
+  }
+
+  async function submitDeleteTeam() {
+    if (!teamToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      setDeleteError('');
+      await deleteTeam(teamToDelete.id);
+      setTeamToDelete(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this team.');
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -176,7 +206,8 @@ export default function TeamsScreen() {
                 canGenerateCompatibility={canGenerateCompatibility}
                 insightsLoading={insightsLoading}
                 insightsError={insightsError}
-                canRotateJoinCode={Boolean(activeTeam.createdBy) && activeTeam.createdBy === user?.id}
+                canRotateJoinCode={isOwner}
+                isOwner={isOwner}
                 rotating={rotating}
                 rotateError={rotateError}
                 onRotateJoinCode={() => {
@@ -184,6 +215,11 @@ export default function TeamsScreen() {
                   setConfirmRotate(true);
                 }}
                 onGenerateInsights={() => void createInsights()}
+                onEdit={() => setTeamToEdit(activeTeam)}
+                onDelete={() => {
+                  setDeleteError('');
+                  setTeamToDelete(activeTeam);
+                }}
                 onLeave={confirmLeaveTeam}
               />
             ) : null}
@@ -199,6 +235,30 @@ export default function TeamsScreen() {
         )}
       </ScrollView>
       <TeamFormModal mode={formMode} onClose={() => setFormMode(null)} />
+      <TeamFormModal mode={teamToEdit ? 'edit' : null} team={teamToEdit} onClose={() => setTeamToEdit(null)} />
+      <ConfirmModal
+        visible={Boolean(teamToDelete)}
+        icon="trash-outline"
+        title="Delete this team?"
+        body={
+          <>
+            {deleteTarget?.name || 'This team'}, its {deleteTarget?.members.length ?? 0}{' '}
+            {deleteTarget?.members.length === 1 ? 'member' : 'members'} and every saved insight will be removed for
+            everyone. The code <Text style={confirmModalStyles.code}>{deleteTarget?.joinCode}</Text> will stop working.
+            This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete team"
+        loadingLabel="Deleting…"
+        tone="danger"
+        loading={deleteLoading}
+        error={deleteError}
+        cancelAccessibilityLabel="Cancel deleting this team"
+        onClose={() => {
+          if (!deleteLoading) setTeamToDelete(null);
+        }}
+        onConfirm={() => void submitDeleteTeam()}
+      />
       <ConfirmModal
         visible={confirmRotate}
         icon="refresh"
@@ -222,7 +282,8 @@ export default function TeamsScreen() {
         onConfirm={() => void submitRotateJoinCode()}
       />
       <LeaveTeamModal
-        team={teamToLeave}
+        visible={Boolean(teamToLeave)}
+        team={leaveTarget}
         loading={leaveLoading}
         error={leaveError}
         onClose={() => {

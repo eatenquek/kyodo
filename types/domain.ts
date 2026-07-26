@@ -28,6 +28,7 @@ export type Profile = {
   preferredRole: string;
   bio?: string;
   availability?: AvailabilityBlock[];
+  avatar?: string; // data URI of the uploaded picture
   onboardingCompleted: boolean;
 };
 
@@ -58,6 +59,7 @@ export type TeamMember = {
   role: string;
   result?: PersonalityResult;
   availability?: AvailabilityBlock[];
+  avatar?: string;
 };
 
 export type Team = {
@@ -80,6 +82,7 @@ export type Cohort = {
   joinCode: string;
   createdBy?: string;
   targetGroupSize: number;
+  school?: string; // slug of the school this cohort belongs to
   isOrganiser: boolean; // true when the signed-in user runs this cohort
   memberCount: number;
   createdAt?: string;

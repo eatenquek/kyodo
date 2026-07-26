@@ -35,12 +35,12 @@ describe('describeScoreBand', () => {
 
 describe('scoreRange', () => {
   it('widens a point score into an honest range', () => {
-    expect(scoreRange(62)).toBe('55–69');
+    expect(scoreRange(62)).toBe('55-69');
   });
 
   it('clamps at the bounds instead of exceeding them', () => {
-    expect(scoreRange(2)).toBe('0–9');
-    expect(scoreRange(98)).toBe('91–100');
+    expect(scoreRange(2)).toBe('0-9');
+    expect(scoreRange(98)).toBe('91-100');
   });
 });
 

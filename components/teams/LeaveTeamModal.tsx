@@ -3,12 +3,14 @@ import { ConfirmModal, confirmModalStyles } from '@/components/ConfirmModal';
 import { Team } from '@/types/domain';
 
 export function LeaveTeamModal({
+  visible,
   team,
   loading,
   error,
   onClose,
   onConfirm
 }: {
+  visible?: boolean;
   team: Team | null;
   loading: boolean;
   error: string;
@@ -17,7 +19,7 @@ export function LeaveTeamModal({
 }) {
   return (
     <ConfirmModal
-      visible={Boolean(team)}
+      visible={visible ?? Boolean(team)}
       icon="exit-outline"
       title="Leave this team?"
       body={

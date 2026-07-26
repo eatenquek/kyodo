@@ -16,6 +16,8 @@ import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 import { AvailabilityBlock, Profile } from '@/types/domain';
 import { availabilityBlocks } from '@/services/scoring/availability';
+import { Avatar } from '@/components/Avatar';
+import { pickAvatar } from '@/lib/avatar';
 
 export function ProfileFormModal({
   visible,
@@ -33,6 +35,7 @@ export function ProfileFormModal({
   const [year, setYear] = useState('');
   const [preferredRole, setPreferredRole] = useState('Flexible');
   const [availability, setAvailability] = useState<AvailabilityBlock[]>([]);
+  const [avatar, setAvatar] = useState<string | undefined>(undefined);
   const [bio, setBio] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,9 +48,19 @@ export function ProfileFormModal({
     setYear(profile?.yearOfStudy?.toString() ?? '');
     setPreferredRole(profile?.preferredRole ?? 'Flexible');
     setAvailability(profile?.availability ?? []);
+    setAvatar(profile?.avatar);
     setBio(profile?.bio ?? '');
     setError('');
   }, [profile, visible]);
+
+  async function chooseAvatar() {
+    try {
+      const picked = await pickAvatar();
+      if (picked) setAvatar(picked);
+    } catch {
+      setError('Could not open the image picker.');
+    }
+  }
 
   function close() {
     if (!loading) onClose();
@@ -75,6 +88,7 @@ export function ProfileFormModal({
         yearOfStudy,
         preferredRole,
         availability,
+        avatar,
         bio: bio.trim() || undefined
       });
       onClose();
@@ -102,6 +116,30 @@ export function ProfileFormModal({
           </View>
 
           <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
+            <View style={styles.avatarRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Change profile picture"
+                onPress={() => void chooseAvatar()}
+                style={({ pressed }) => [styles.avatarWrap, pressed && styles.pressed]}
+              >
+                <Avatar name={fullName} uri={avatar} size={72} color={colors.accent} textColor="#FFFFFF" />
+                <View style={styles.avatarBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                </View>
+              </Pressable>
+              <View style={styles.avatarCopy}>
+                <Pressable accessibilityRole="button" onPress={() => void chooseAvatar()}>
+                  <Text style={styles.avatarAction}>{avatar ? 'Change photo' : 'Add a photo'}</Text>
+                </Pressable>
+                {avatar ? (
+                  <Pressable accessibilityRole="button" onPress={() => setAvatar(undefined)}>
+                    <Text style={styles.avatarRemove}>Remove</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+
             <AppTextInput
               label="Full name"
               placeholder="Your name"
@@ -115,7 +153,7 @@ export function ProfileFormModal({
             <AppTextInput label="Course" placeholder="e.g. Computer Science" value={course} onChangeText={setCourse} />
             <AppTextInput
               label="Year of study"
-              placeholder="1–8"
+              placeholder="1-8"
               value={year}
               onChangeText={(value) => setYear(value.replace(/[^0-9]/g, '').slice(0, 1))}
               keyboardType="number-pad"
@@ -218,6 +256,24 @@ const styles = StyleSheet.create({
   form: { gap: 15, paddingBottom: 8 },
   roleField: { gap: 9 },
   availabilityHelp: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: -4 },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatarWrap: { width: 72, height: 72 },
+  avatarBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.accentDark,
+    borderWidth: 2,
+    borderColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  avatarCopy: { gap: 4 },
+  avatarAction: { color: colors.accentDark, fontSize: 14, fontWeight: '800' },
+  avatarRemove: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   label: { color: colors.textPrimary, fontSize: 13, fontWeight: '700', marginLeft: 2 },
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   roleChip: {
