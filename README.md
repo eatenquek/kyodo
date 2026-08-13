@@ -646,7 +646,9 @@ The `components/` directory contains shared UI and team/profile-specific compone
 - profile modal in `components/profile/ProfileFormModal.tsx`;
 - team detail card in `components/teams/TeamDetails.tsx`;
 - team creation/join modal in `components/teams/TeamFormModal.tsx`;
-- leave confirmation modal in `components/teams/LeaveTeamModal.tsx`.
+- leave confirmation modal in `components/teams/LeaveTeamModal.tsx`;
+- fallback screens for a failed startup or a render error in
+  `components/StartupError.tsx` and `components/ErrorBoundary.tsx`.
 
 ### App state
 
@@ -1763,8 +1765,10 @@ The repository also contains `.env.example`:
 ```env
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_KEY=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
+
+Without these the app still runs, but in local-only mode: everything is stored
+on the device and teams cannot be shared between accounts.
 
 Do not commit `.env.local`.
 
