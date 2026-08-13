@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppButton, AppTextInput, Body, BrandHeader, H1, Screen } from '@/components/ui';
+import { colors, radius, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 
 export default function LoginScreen() {
@@ -10,10 +11,15 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
+  const canSubmit = Boolean(email.trim()) && Boolean(password) && !loading;
 
   async function submit() {
+    if (!canSubmit) return;
+
     try {
       setLoading(true);
+      setError('');
       const authResult = await signIn(email, password);
       if (!authResult.ok) {
         setError(authResult.message);
@@ -45,17 +51,35 @@ export default function LoginScreen() {
             setError('');
           }}
           autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
           keyboardType="email-address"
-          error={error}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => passwordRef.current?.focus()}
         />
         <AppTextInput
+          ref={passwordRef}
           label="Password"
           placeholder="Enter your password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(value) => {
+            setPassword(value);
+            setError('');
+          }}
+          autoCapitalize="none"
+          autoComplete="current-password"
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={() => void submit()}
           secureTextEntry
         />
-        <AppButton title="Sign In" onPress={submit} disabled={!email || !password} loading={loading} />
+        {/* form level, because a rejected sign-in is rarely about one field */}
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={styles.formError}>{error}</Text>
+        ) : null}
+        <AppButton title="Sign in" onPress={submit} disabled={!canSubmit} loading={loading} />
         <AppButton title="Create an account" variant="tertiary" onPress={() => router.push('/(auth)/register')} />
       </View>
     </Screen>
@@ -70,9 +94,19 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     gap: 9,
-    marginBottom: 12
+    marginBottom: spacing.md
   },
   form: {
-    gap: 16
+    gap: spacing.lg
+  },
+  formError: {
+    color: colors.error,
+    backgroundColor: colors.errorSoft,
+    borderRadius: radius.sm,
+    fontSize: typography.label,
+    fontWeight: '600',
+    lineHeight: 19,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10
   }
 });

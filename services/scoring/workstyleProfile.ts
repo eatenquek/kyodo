@@ -111,7 +111,7 @@ const watchOutSignals: Array<{
   },
   {
     score: (scores) => scores.detail,
-    high: 'Polish can compete with speed when the team has not agreed on “good enough.”',
+    high: 'Polish can compete with speed when the team has not agreed on "good enough."',
     low: 'A shared review checklist may help catch details before submission.'
   },
   {

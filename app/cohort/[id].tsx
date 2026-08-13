@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { AppButton, Screen } from '@/components/ui';
-import { colors } from '@/constants/theme';
+import { colors, typography } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 import { CohortFormationOutcome, planCohortFormation } from '@/services/cohorts/cohortFormation';
 import { describeScoreBand, scoreCaveat, scoreRange } from '@/services/scoring/scoreInterpretation';
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   backText: { color: colors.accentDark, fontSize: 14, fontWeight: '700' },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   headerCopy: { flex: 1 },
-  eyebrow: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  eyebrow: { color: colors.accentDark, fontSize: typography.micro, fontWeight: '800', letterSpacing: 0.9 },
   title: { color: colors.textPrimary, fontSize: 24, fontWeight: '900', marginTop: 4 },
   body: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 6 },
   codePill: { alignItems: 'center', backgroundColor: colors.accentSoft, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 8 },
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   deleteText: { color: colors.error, fontSize: 13, fontWeight: '700' },
   stat: { flex: 1, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 11 },
   statValue: { color: colors.accentDark, fontSize: 18, fontWeight: '900' },
-  statLabel: { color: colors.textSecondary, fontSize: 9, fontWeight: '800', marginTop: 3 },
+  statLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', marginTop: 3 },
   loading: { alignItems: 'center', gap: 8, paddingVertical: 24 },
   card: { borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 15, gap: 10 },
   cardWarn: { backgroundColor: '#FFF8E6', borderColor: '#F0E2BC' },
@@ -392,14 +392,14 @@ const styles = StyleSheet.create({
   groupMembers: { color: colors.textPrimary, fontSize: 12, fontWeight: '700', lineHeight: 18 },
   groupNote: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   groupAvailability: { color: colors.accentDark, fontSize: 11, lineHeight: 16 },
-  caveat: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontStyle: 'italic' },
-  futureNote: { color: colors.textSecondary, fontSize: 10, lineHeight: 15 },
+  caveat: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
+  futureNote: { color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
   rosterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36 },
   rosterName: { flex: 1, color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
   rosterTags: { flexDirection: 'row', gap: 6 },
   tag: { borderRadius: 99, backgroundColor: '#F1F2F1', paddingHorizontal: 8, paddingVertical: 4 },
   tagReady: { backgroundColor: colors.accentSoft },
-  tagText: { color: '#777F7A', fontSize: 9, fontWeight: '700' },
+  tagText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
   tagTextReady: { color: colors.accentDark },
   pressed: { opacity: 0.72 }
 });

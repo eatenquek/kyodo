@@ -241,7 +241,7 @@ function buildOverlapRisks(members: ScoredMember[]) {
   const quietConflictCount = members.filter((member) => member.result.conflict <= 40).length;
 
   if (coordinatorCount >= 3) risks.push('Several members may try to coordinate; agree who makes the final call for each phase.');
-  if (fastPaceCount >= 2 && detailCount >= 2) risks.push('Speed and polish are both strong; define “good enough” before deadlines get close.');
+  if (fastPaceCount >= 2 && detailCount >= 2) risks.push('Speed and polish are both strong; define "good enough" before deadlines get close.');
   if (quietConflictCount >= 2) risks.push('Concerns may stay quiet; schedule a short risk check before major decisions.');
 
   return risks.slice(0, 3);
@@ -279,7 +279,7 @@ function generateInsights({
   const frictions = new Set<string>();
   const tips = new Set<string>();
 
-  if (pairFitScore >= 74) strengths.add('The team’s day-to-day work preferences look compatible overall.');
+  if (pairFitScore >= 74) strengths.add("The team's day-to-day work preferences look compatible overall.");
   if (roleCoverageScore >= 72) strengths.add('Core team roles are covered by at least one strong member.');
   if (coordinatorHealthScore >= 72) strengths.add('Coordination has a clear anchor, which should help decisions move.');
 
@@ -303,7 +303,7 @@ function generateInsights({
   const spreadCopy: Partial<Record<keyof WorkstyleScores, string>> = {
     planning: 'Some members may want more structure while others prefer shaping the plan as they go.',
     communication: 'The team should agree how often updates happen so no one feels chased or left out.',
-    pace: 'Members may have different ideas of what “soon” means.',
+    pace: 'Members may have different ideas of what "soon" means.',
     conflict: 'Some concerns may be raised directly while others may stay quiet.',
     detail: 'The team may need to agree how much polish is enough.',
     flexibility: 'Plan changes may feel easy to some teammates and disruptive to others.'

@@ -1,19 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ReactNode } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-
-const palette = {
-  background: '#FBFCFA',
-  surface: '#FFFFFF',
-  text: '#171C19',
-  secondary: '#5A635E',
-  border: '#E1E9E4',
-  error: '#B9483D',
-  errorSoft: '#FCECEA',
-  accent: '#15906A',
-  accentDark: '#087453',
-  accentSoft: '#DDF2E9'
-};
+import { colors } from '@/constants/theme';
 
 export type ConfirmTone = 'danger' | 'accent'; // danger = destructive, accent = reversible
 
@@ -50,10 +38,15 @@ export function ConfirmModal({
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.modalRoot}>
-        <Pressable accessibilityLabel={cancelAccessibilityLabel} onPress={onClose} style={styles.backdrop} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={cancelAccessibilityLabel}
+          onPress={onClose}
+          style={styles.backdrop}
+        />
         <View accessibilityViewIsModal style={styles.dialog}>
           <View style={[styles.iconWrap, !danger && styles.iconWrapAccent]}>
-            <Ionicons name={icon} size={28} color={danger ? palette.error : palette.accentDark} />
+            <Ionicons name={icon} size={28} color={danger ? colors.error : colors.accentDark} />
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>
@@ -92,7 +85,7 @@ export function ConfirmModal({
 
 export const confirmModalStyles = StyleSheet.create({
   code: {
-    color: palette.text,
+    color: colors.textPrimary,
     fontWeight: '900',
     letterSpacing: 0.7
   }
@@ -113,7 +106,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 390,
     alignItems: 'center',
-    backgroundColor: palette.background,
+    backgroundColor: colors.background,
     borderRadius: 22,
     padding: 24,
     shadowColor: '#102019',
@@ -128,21 +121,21 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.errorSoft,
+    backgroundColor: colors.errorSoft,
     marginBottom: 14
   },
   iconWrapAccent: {
-    backgroundColor: palette.accentSoft
+    backgroundColor: colors.accentSoft
   },
   title: {
-    color: palette.text,
+    color: colors.textPrimary,
     fontSize: 21,
     fontWeight: '900',
     letterSpacing: -0.4,
     textAlign: 'center'
   },
   body: {
-    color: palette.secondary,
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',
@@ -150,8 +143,8 @@ const styles = StyleSheet.create({
   },
   error: {
     width: '100%',
-    color: palette.error,
-    backgroundColor: palette.errorSoft,
+    color: colors.error,
+    backgroundColor: colors.errorSoft,
     borderRadius: 10,
     fontSize: 12,
     lineHeight: 18,
@@ -175,23 +168,23 @@ const styles = StyleSheet.create({
     borderRadius: 99
   },
   cancelButton: {
-    backgroundColor: palette.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: palette.border
+    borderColor: colors.border
   },
   dangerButton: {
-    backgroundColor: palette.error
+    backgroundColor: colors.error
   },
   accentButton: {
-    backgroundColor: palette.accent
+    backgroundColor: colors.accentDark
   },
   cancelText: {
-    color: palette.text,
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '800'
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 14,
     fontWeight: '800'
   },

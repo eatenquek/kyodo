@@ -2,22 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { colors, layout, typography } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
 import { CohortFormModal, CohortFormMode } from '@/components/cohorts/CohortFormModal';
 import { useAppState } from '@/lib/appState';
 import { universityLogos } from '@/constants/universities';
-
-const palette = {
-  background: '#FBFCFA',
-  surface: '#FFFFFF',
-  text: '#171C19',
-  secondary: '#5A635E',
-  border: '#E1E9E4',
-  accent: '#15906A',
-  accentDark: '#087453',
-  accentSoft: '#DDF2E9'
-};
 
 export default function CohortScreen() {
   const { cohorts, loadCohorts } = useAppState();
@@ -41,14 +31,13 @@ export default function CohortScreen() {
 
         <View style={styles.introCard}>
           <View style={styles.introCopy}>
-            <Text style={styles.eyebrow}>FOR CLASSES & TUTORIALS</Text>
             <Text style={styles.introTitle}>Split a class into teams.</Text>
             <Text style={styles.introBody}>
               An organiser creates a cohort, students join with a code, and it splits into balanced teams in one go.
             </Text>
           </View>
           <View style={styles.introIcon}>
-            <Ionicons name="school" size={34} color={palette.accentDark} />
+            <Ionicons name="school" size={34} color={colors.accentDark} />
           </View>
         </View>
 
@@ -79,7 +68,7 @@ export default function CohortScreen() {
                   {cohort.school && universityLogos[cohort.school] ? (
                     <Image source={universityLogos[cohort.school]} style={styles.cohortLogo} resizeMode="contain" />
                   ) : (
-                    <Ionicons name="school-outline" size={22} color={palette.accentDark} />
+                    <Ionicons name="school-outline" size={22} color={colors.accentDark} />
                   )}
                 </View>
                 <View style={styles.cohortCopy}>
@@ -89,14 +78,14 @@ export default function CohortScreen() {
                     {cohort.memberCount === 1 ? 'student' : 'students'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={21} color="#9BA29E" />
+                <Ionicons name="chevron-forward" size={21} color={colors.iconMuted} />
               </Pressable>
             ))}
           </>
         ) : (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="school-outline" size={31} color={palette.accentDark} />
+              <Ionicons name="school-outline" size={31} color={colors.accentDark} />
             </View>
             <Text style={styles.emptyTitle}>No cohorts yet</Text>
             <Text style={styles.emptyBody}>
@@ -111,7 +100,7 @@ export default function CohortScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: palette.background },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   backgroundGlow: {
     position: 'absolute',
     width: 210,
@@ -119,32 +108,31 @@ const styles = StyleSheet.create({
     borderRadius: 105,
     top: -110,
     right: -115,
-    backgroundColor: '#F0F8F3'
+    backgroundColor: colors.glow
   },
   content: {
     flexGrow: 1,
     width: '100%',
-    maxWidth: 480,
+    maxWidth: layout.maxWidth,
     alignSelf: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: layout.gutter,
     paddingTop: 18,
     paddingBottom: 32,
     gap: 16
   },
   pageHeader: { minHeight: 44, justifyContent: 'center', marginBottom: 10 },
-  pageTitle: { color: palette.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.6 },
+  pageTitle: { color: colors.textPrimary, fontSize: typography.pageTitle, fontWeight: '800', letterSpacing: -0.6 },
   introCard: {
     minHeight: 118,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     borderRadius: 18,
     padding: 18
   },
   introCopy: { flex: 1, paddingRight: 12 },
-  eyebrow: { color: palette.accentDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  introTitle: { color: palette.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5, marginTop: 5 },
-  introBody: { color: palette.secondary, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  introTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  introBody: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 6 },
   introIcon: {
     width: 66,
     height: 66,
@@ -156,7 +144,7 @@ const styles = StyleSheet.create({
   quickActions: { flexDirection: 'row', gap: 10 },
   actionSlot: { flex: 1 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  sectionTitle: { color: palette.text, fontSize: 18, fontWeight: '800' },
+  sectionTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '800' },
   sectionCount: {
     minWidth: 24,
     height: 24,
@@ -164,8 +152,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     textAlign: 'center',
     lineHeight: 24,
-    color: palette.accentDark,
-    backgroundColor: palette.accentSoft,
+    color: colors.accentDark,
+    backgroundColor: colors.accentSoft,
     fontSize: 12,
     fontWeight: '800'
   },
@@ -176,8 +164,8 @@ const styles = StyleSheet.create({
     padding: 13,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface
+    borderColor: colors.border,
+    backgroundColor: colors.surface
   },
   cohortLogo: { width: 30, height: 30 },
   cohortBadge: {
@@ -186,18 +174,18 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     marginRight: 12
   },
   cohortCopy: { flex: 1, paddingRight: 8 },
-  cohortName: { color: palette.text, fontSize: 16, fontWeight: '800' },
-  cohortMeta: { color: palette.secondary, fontSize: 12, marginTop: 5 },
+  cohortName: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  cohortMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 5 },
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: palette.surface,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: colors.border,
     paddingHorizontal: 25,
     paddingVertical: 32
   },
@@ -207,10 +195,10 @@ const styles = StyleSheet.create({
     borderRadius: 31,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     marginBottom: 14
   },
-  emptyTitle: { color: palette.text, fontSize: 19, fontWeight: '800' },
-  emptyBody: { color: palette.secondary, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 7 },
+  emptyTitle: { color: colors.textPrimary, fontSize: 19, fontWeight: '800' },
+  emptyBody: { color: colors.textSecondary, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 7 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }
 });

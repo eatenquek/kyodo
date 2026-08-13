@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { avatarColors, colors } from '@/constants/theme';
 import { AppButton } from '@/components/ui';
 import { generateTeamCoachAdvice, TeamCoachAdvice } from '@/services/ai/teamCoach';
 import { buildTeamCoachPayload } from '@/services/ai/teamCoachPayload';
@@ -14,19 +15,6 @@ import { Avatar } from '@/components/Avatar';
 import { AvailabilityOverlap, calculateAvailabilityOverlap } from '@/services/scoring/availability';
 import { describeScoreBand, scoreCaveat, scoreRange } from '@/services/scoring/scoreInterpretation';
 import { CompatibilityResult, Team, TeamMember } from '@/types/domain';
-
-const palette = {
-  surface: '#FFFFFF',
-  text: '#171C19',
-  secondary: '#5A635E',
-  border: '#E1E9E4',
-  accent: '#15906A',
-  accentDark: '#087453',
-  accentSoft: '#DDF2E9',
-  error: '#B9483D'
-};
-
-const avatarColors = ['#F0B1A7', '#F2C985', '#A8D9C3', '#BFC9EC', '#DAB8E7'];
 
 export function TeamDetails({
   team,
@@ -158,7 +146,7 @@ export function TeamDetails({
               onPress={onRotateJoinCode}
               style={({ pressed }) => [styles.rotateButton, pressed && styles.pressed]}
             >
-              <Ionicons name="refresh" size={12} color={palette.accentDark} />
+              <Ionicons name="refresh" size={12} color={colors.accentDark} />
               <Text style={styles.rotateText}>{rotating ? 'Working…' : 'New code'}</Text>
             </Pressable>
           ) : null}
@@ -182,7 +170,7 @@ export function TeamDetails({
           onPress={onEdit}
           style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
         >
-          <Ionicons name="create-outline" size={15} color={palette.accentDark} />
+          <Ionicons name="create-outline" size={15} color={colors.accentDark} />
           <Text style={styles.editText}>Edit team details</Text>
         </Pressable>
       ) : null}
@@ -213,7 +201,7 @@ export function TeamDetails({
       <View style={styles.insightCard}>
         <View style={styles.insightHeader}>
           <View style={styles.insightIcon}>
-            <Ionicons name="sparkles" size={18} color={palette.accentDark} />
+            <Ionicons name="sparkles" size={18} color={colors.accentDark} />
           </View>
           <View style={styles.insightCopy}>
             <Text style={styles.insightTitle}>Compatibility insights</Text>
@@ -238,7 +226,7 @@ export function TeamDetails({
 
             {compatibility.suggestedCoordinator ? (
               <View style={styles.coordinatorCallout}>
-                <Ionicons name="flag-outline" size={15} color={palette.accentDark} />
+                <Ionicons name="flag-outline" size={15} color={colors.accentDark} />
                 <Text style={styles.coordinatorText}>{compatibility.suggestedCoordinator}</Text>
               </View>
             ) : null}
@@ -299,7 +287,7 @@ export function TeamDetails({
         onPress={onLeave}
         style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}
       >
-        <Ionicons name="exit-outline" size={18} color={palette.error} />
+        <Ionicons name="exit-outline" size={18} color={colors.error} />
         <Text style={styles.leaveText}>Leave this team</Text>
       </Pressable>
 
@@ -310,7 +298,7 @@ export function TeamDetails({
           onPress={onDelete}
           style={({ pressed }) => [styles.leaveButton, pressed && styles.pressed]}
         >
-          <Ionicons name="trash-outline" size={17} color={palette.error} />
+          <Ionicons name="trash-outline" size={17} color={colors.error} />
           <Text style={styles.leaveText}>Delete this team</Text>
         </Pressable>
       ) : null}
@@ -366,7 +354,7 @@ function MemberRow({
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={16}
-          color={palette.secondary}
+          color={colors.textSecondary}
           style={styles.memberChevron}
         />
       </Pressable>
@@ -399,7 +387,7 @@ function AvailabilityCard({
     <View style={[styles.availabilityCard, noOverlap && styles.availabilityCardWarn]}>
       <View style={styles.insightHeader}>
         <View style={[styles.insightIcon, noOverlap && styles.availabilityIconWarn]}>
-          <Ionicons name="calendar-outline" size={18} color={noOverlap ? '#8A6D1F' : palette.accentDark} />
+          <Ionicons name="calendar-outline" size={18} color={noOverlap ? '#8A6D1F' : colors.accentDark} />
         </View>
         <View style={styles.insightCopy}>
           <Text style={styles.insightTitle}>Shared availability</Text>
@@ -445,7 +433,7 @@ function AiCoachCard({
     <View style={styles.aiCoachCard}>
       <View style={styles.formationHeader}>
         <View style={styles.aiCoachIcon}>
-          <Ionicons name="chatbubbles-outline" size={18} color={palette.accentDark} />
+          <Ionicons name="chatbubbles-outline" size={18} color={colors.accentDark} />
         </View>
         <View style={styles.formationCopy}>
           <Text style={styles.formationTitle}>Kyodo</Text>
@@ -498,7 +486,7 @@ function FormationCard({
     <View style={styles.formationCard}>
       <View style={styles.formationHeader}>
         <View style={styles.formationIcon}>
-          <Ionicons name="git-network-outline" size={18} color={palette.accentDark} />
+          <Ionicons name="git-network-outline" size={18} color={colors.accentDark} />
         </View>
         <View style={styles.formationCopy}>
           <Text style={styles.formationTitle}>Best group split</Text>
@@ -613,9 +601,9 @@ function ScoreCaveat() {
         onPress={() => setOpen((current) => !current)}
         style={({ pressed }) => [styles.caveatToggle, pressed && styles.pressed]}
       >
-        <Ionicons name="information-circle-outline" size={14} color={palette.secondary} />
+        <Ionicons name="information-circle-outline" size={14} color={colors.textSecondary} />
         <Text style={styles.caveatToggleText}>How to read these scores</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={13} color={palette.secondary} />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={13} color={colors.textSecondary} />
       </Pressable>
       {open ? <Text style={styles.caveatBody}>{scoreCaveat}</Text> : null}
     </View>
@@ -655,7 +643,7 @@ function InsightSection({ title, items }: { title: string; items: string[] }) {
 
 const styles = StyleSheet.create({
   detailsCard: {
-    backgroundColor: palette.surface,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#EEF2EF',
@@ -673,8 +661,8 @@ const styles = StyleSheet.create({
     gap: 12
   },
   detailsTitleCopy: { flex: 1 },
-  detailsEyebrow: { color: palette.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  detailsTitle: { color: palette.text, fontSize: 22, fontWeight: '900', marginTop: 4 },
+  detailsEyebrow: { color: colors.accentDark, fontSize: 11, fontWeight: '800', letterSpacing: 0.9 },
+  detailsTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', marginTop: 4 },
   codeColumn: { alignItems: 'flex-end', gap: 6 },
   inviteButton: {
     minHeight: 44,
@@ -683,41 +671,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
     borderRadius: 99,
-    backgroundColor: palette.accent,
+    backgroundColor: colors.accentDark,
     marginTop: 14
   },
-  inviteText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  inviteText: { color: colors.surface, fontSize: 14, fontWeight: '800' },
   editButton: {
-    minHeight: 42,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
     borderRadius: 99,
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     marginTop: 9
   },
-  editText: { color: palette.accentDark, fontSize: 13, fontWeight: '800' },
-  inviteNotice: { color: palette.accentDark, fontSize: 11, lineHeight: 16, marginTop: 8, textAlign: 'center' },
+  editText: { color: colors.accentDark, fontSize: 13, fontWeight: '800' },
+  inviteNotice: { color: colors.accentDark, fontSize: 11, lineHeight: 16, marginTop: 8, textAlign: 'center' },
   rotateButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 30, paddingHorizontal: 4 },
-  rotateText: { color: palette.accentDark, fontSize: 11, fontWeight: '800' },
-  rotateError: { color: palette.error, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 8 },
+  rotateText: { color: colors.accentDark, fontSize: 11, fontWeight: '800' },
+  rotateError: { color: colors.error, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 8 },
   codePill: {
     alignItems: 'center',
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     borderRadius: 11,
     paddingHorizontal: 10,
     paddingVertical: 7
   },
-  codeLabel: { color: palette.secondary, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
-  codeValue: { color: palette.accentDark, fontSize: 14, fontWeight: '900', letterSpacing: 1.2, marginTop: 2 },
-  projectName: { color: palette.accentDark, fontSize: 14, fontWeight: '700', marginTop: 12 },
-  description: { color: palette.secondary, fontSize: 14, lineHeight: 21, marginTop: 5 },
-  divider: { height: 1, backgroundColor: palette.border, marginVertical: 17 },
-  memberHeading: { color: palette.text, fontSize: 15, fontWeight: '800' },
-  memberHint: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 3, marginBottom: 11 },
+  codeLabel: { color: colors.textSecondary, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+  codeValue: { color: colors.accentDark, fontSize: 14, fontWeight: '900', letterSpacing: 1.2, marginTop: 2 },
+  projectName: { color: colors.accentDark, fontSize: 14, fontWeight: '700', marginTop: 12 },
+  description: { color: colors.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 5 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 17 },
+  memberHeading: { color: colors.textPrimary, fontSize: 15, fontWeight: '800' },
+  memberHint: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 3, marginBottom: 11 },
   memberList: { gap: 12 },
   memberItem: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
   memberChevron: { marginLeft: 8 },
@@ -730,23 +718,23 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 9
   },
-  memberDetailTendency: { color: palette.accentDark, fontSize: 12, fontWeight: '900' },
-  memberDetailBody: { color: palette.secondary, fontSize: 12, lineHeight: 18 },
-  memberDetailDisclaimer: { color: palette.secondary, fontSize: 10, lineHeight: 15, fontStyle: 'italic' },
+  memberDetailTendency: { color: colors.accentDark, fontSize: 12, fontWeight: '900' },
+  memberDetailBody: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  memberDetailDisclaimer: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
   avatarSlot: { marginRight: 10 },
   memberCopy: { flex: 1, paddingRight: 8 },
-  memberName: { color: palette.text, fontSize: 14, fontWeight: '700' },
-  memberRole: { color: palette.secondary, fontSize: 11, marginTop: 3 },
+  memberName: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
+  memberRole: { color: colors.textSecondary, fontSize: 11, marginTop: 3 },
   profileStatus: { borderRadius: 99, backgroundColor: '#F1F2F1', paddingHorizontal: 8, paddingVertical: 5 },
-  profileStatusComplete: { backgroundColor: palette.accentSoft },
-  profileStatusText: { color: '#777F7A', fontSize: 9, fontWeight: '700' },
-  profileStatusTextComplete: { color: palette.accentDark },
+  profileStatusComplete: { backgroundColor: colors.accentSoft },
+  profileStatusText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
+  profileStatusTextComplete: { color: colors.accentDark },
   availabilityCard: { backgroundColor: '#F5FAF7', borderRadius: 13, padding: 14, marginTop: 20, gap: 10 },
   availabilityCardWarn: { backgroundColor: '#FFF8E6' },
   availabilityIconWarn: { backgroundColor: '#FBEFCF' },
   slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  slotChip: { borderRadius: 99, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: palette.border, paddingHorizontal: 10, paddingVertical: 6 },
-  slotChipText: { color: palette.accentDark, fontSize: 11, fontWeight: '800' },
+  slotChip: { borderRadius: 99, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 6 },
+  slotChipText: { color: colors.accentDark, fontSize: 11, fontWeight: '800' },
   insightCard: { backgroundColor: '#F5FAF7', borderRadius: 13, padding: 14, marginTop: 20, gap: 12 },
   insightHeader: { flexDirection: 'row', alignItems: 'center' },
   insightIcon: {
@@ -755,62 +743,62 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     marginRight: 10
   },
   insightCopy: { flex: 1 },
-  insightTitle: { color: palette.text, fontSize: 14, fontWeight: '800' },
-  insightBody: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  insightTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  insightBody: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
   compatibilityReport: { gap: 12 },
   metricGrid: { flexDirection: 'row', gap: 8 },
   metricCard: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: colors.border,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 10
   },
   // Fixed height keeps the band text aligned when a label wraps to two lines.
-  metricLabel: { color: palette.secondary, fontSize: 9, fontWeight: '800', lineHeight: 12, minHeight: 24 },
-  metricBand: { color: palette.accentDark, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  metricLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', lineHeight: 14, minHeight: 28 },
+  metricBand: { color: colors.accentDark, fontSize: 13, fontWeight: '900', marginTop: 4 },
   metricBandWatch: { color: '#8A6D1F' },
-  metricRange: { color: palette.secondary, fontSize: 10, fontWeight: '600', marginTop: 2 },
+  metricRange: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 },
   caveatToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32 },
-  caveatToggleText: { flex: 1, color: palette.secondary, fontSize: 11, fontWeight: '700' },
-  caveatBody: { color: palette.secondary, fontSize: 11, lineHeight: 17, marginTop: 2 },
+  caveatToggleText: { flex: 1, color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
+  caveatBody: { color: colors.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 2 },
   coordinatorCallout: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
     borderRadius: 12,
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     padding: 10
   },
-  coordinatorText: { flex: 1, color: palette.accentDark, fontSize: 12, fontWeight: '700', lineHeight: 17 },
+  coordinatorText: { flex: 1, color: colors.accentDark, fontSize: 12, fontWeight: '700', lineHeight: 17 },
   roleGrid: { gap: 8 },
   roleCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: colors.border,
     backgroundColor: '#FFFFFF',
     padding: 10
   },
   roleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  roleLabel: { color: palette.text, fontSize: 12, fontWeight: '800' },
-  roleScore: { color: palette.accentDark, fontSize: 12, fontWeight: '900' },
-  roleMembers: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  roleLabel: { color: colors.textPrimary, fontSize: 12, fontWeight: '800' },
+  roleScore: { color: colors.accentDark, fontSize: 12, fontWeight: '900' },
+  roleMembers: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
   insightSection: { gap: 7 },
-  insightSectionTitle: { color: palette.text, fontSize: 12, fontWeight: '900' },
+  insightSectionTitle: { color: colors.textPrimary, fontSize: 12, fontWeight: '900' },
   insightBulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  insightBullet: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.accent, marginTop: 6 },
-  insightBulletText: { flex: 1, color: palette.secondary, fontSize: 12, lineHeight: 18 },
+  insightBullet: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginTop: 6 },
+  insightBulletText: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   formationCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: colors.border,
     padding: 14,
     marginTop: 12,
     gap: 12
@@ -822,15 +810,15 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.accentSoft,
+    backgroundColor: colors.accentSoft,
     marginRight: 10
   },
   formationCopy: { flex: 1 },
-  formationTitle: { color: palette.text, fontSize: 14, fontWeight: '800' },
-  formationBody: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  formationTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  formationBody: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
   formationReport: { gap: 10 },
   groupSizePicker: { gap: 8 },
-  groupSizeLabel: { color: palette.text, fontSize: 12, fontWeight: '900' },
+  groupSizeLabel: { color: colors.textPrimary, fontSize: 12, fontWeight: '900' },
   groupSizeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   groupSizeChip: {
     minWidth: 34,
@@ -839,18 +827,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: colors.border,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 10
   },
   groupSizeChipActive: {
-    borderColor: palette.accent,
-    backgroundColor: palette.accent
+    borderColor: colors.accentDark,
+    backgroundColor: colors.accentDark
   },
-  groupSizeChipText: { color: palette.secondary, fontSize: 12, fontWeight: '900' },
-  groupSizeChipTextActive: { color: '#FFFFFF' },
-  formationSizes: { color: palette.text, fontSize: 12, fontWeight: '800' },
-  formationMethod: { color: palette.secondary, fontSize: 10, lineHeight: 15 },
+  groupSizeChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
+  groupSizeChipTextActive: { color: colors.surface },
+  formationSizes: { color: colors.textPrimary, fontSize: 12, fontWeight: '800' },
+  formationMethod: { color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
   suggestedGroupCard: {
     borderRadius: 12,
     backgroundColor: '#F8FCFA',
@@ -859,11 +847,11 @@ const styles = StyleSheet.create({
     padding: 11
   },
   suggestedGroupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  suggestedGroupTitle: { color: palette.text, fontSize: 13, fontWeight: '900' },
-  suggestedGroupScore: { color: palette.accentDark, fontSize: 13, fontWeight: '900' },
-  suggestedGroupMembers: { color: palette.text, fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 5 },
-  suggestedGroupNote: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 6 },
-  suggestedGroupStrength: { color: palette.accentDark, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 6 },
+  suggestedGroupTitle: { color: colors.textPrimary, fontSize: 13, fontWeight: '900' },
+  suggestedGroupScore: { color: colors.accentDark, fontSize: 13, fontWeight: '900' },
+  suggestedGroupMembers: { color: colors.textPrimary, fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 5 },
+  suggestedGroupNote: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 6 },
+  suggestedGroupStrength: { color: colors.accentDark, fontSize: 11, fontWeight: '700', lineHeight: 16, marginTop: 6 },
   aiCoachCard: {
     backgroundColor: '#F8FCFA',
     borderRadius: 13,
@@ -882,19 +870,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginRight: 10
   },
-  aiCoachError: { color: palette.error, fontSize: 11, fontWeight: '700', lineHeight: 16 },
-  aiCoachHint: { color: palette.secondary, fontSize: 11, lineHeight: 16 },
+  aiCoachError: { color: colors.error, fontSize: 11, fontWeight: '700', lineHeight: 16 },
+  aiCoachHint: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   aiCoachReport: { gap: 12 },
-  aiCoachSummary: { color: palette.text, fontSize: 13, fontWeight: '800', lineHeight: 19 },
+  aiCoachSummary: { color: colors.textPrimary, fontSize: 13, fontWeight: '800', lineHeight: 19 },
   roleSuggestionCard: {
     borderRadius: 11,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: colors.border,
     padding: 10
   },
-  roleSuggestionTitle: { color: palette.text, fontSize: 12, fontWeight: '900' },
-  roleSuggestionBody: { color: palette.secondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  roleSuggestionTitle: { color: colors.textPrimary, fontSize: 12, fontWeight: '900' },
+  roleSuggestionBody: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
   leaveButton: {
     minHeight: 42,
     flexDirection: 'row',
@@ -903,6 +891,6 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 10
   },
-  leaveText: { color: palette.error, fontSize: 13, fontWeight: '700' },
+  leaveText: { color: colors.error, fontSize: 13, fontWeight: '700' },
   pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }
 });

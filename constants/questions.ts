@@ -42,7 +42,7 @@ export const questions: Question[] = [
   { id: 'kyodo15_q09', dimension: 'pace', prompt: 'I prefer working steadily across the timeline instead of rushing at the end.', reverse: false },
   { id: 'kyodo15_q10', dimension: 'flexibility', prompt: 'I adapt well when the plan changes mid-project.', reverse: false },
   { id: 'kyodo15_q11', dimension: 'detail', prompt: 'I naturally notice small errors or missing details in group work.', reverse: false },
-  { id: 'kyodo15_q12', dimension: 'detail', prompt: 'When time is tight, I am happy to ship something “good enough.”', reverse: true },
+  { id: 'kyodo15_q12', dimension: 'detail', prompt: 'When time is tight, I am happy to ship something "good enough."', reverse: true },
   { id: 'kyodo15_q13', dimension: 'conflict', prompt: 'If I disagree with teammates, I usually say it directly and respectfully.', reverse: false },
   { id: 'kyodo15_q14', dimension: 'conflict', prompt: 'I tend to avoid disagreement unless someone else brings it up first.', reverse: true },
   { id: 'kyodo15_q15', dimension: 'communication', prompt: 'I often help the team by summarizing next steps and checking progress.', reverse: false },

@@ -99,17 +99,16 @@ export function CohortFormModal({
   return (
     <Modal animationType="slide" transparent visible={Boolean(mode)} onRequestClose={close} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
-        <Pressable accessibilityLabel="Close cohort form" onPress={close} style={styles.backdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close cohort form" onPress={close} style={styles.backdrop} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>{editing ? 'EDIT COHORT' : creating ? 'NEW COHORT' : 'COHORT INVITE'}</Text>
               <Text style={styles.title}>
                 {editing ? 'Edit this cohort' : creating ? 'Create a cohort' : 'Join a cohort'}
               </Text>
             </View>
-            <Pressable accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
               <Ionicons name="close" size={23} color={colors.textPrimary} />
             </Pressable>
           </View>
@@ -118,6 +117,7 @@ export function CohortFormModal({
             <View style={styles.fields}>
               <AppTextInput
                 label="Cohort name"
+                maxLength={60}
                 placeholder="e.g. CS3216 Tutorial 4"
                 value={name}
                 onChangeText={(value) => {
@@ -127,6 +127,7 @@ export function CohortFormModal({
               />
               <AppTextInput
                 label="Description"
+                maxLength={280}
                 placeholder="Optional"
                 value={description}
                 onChangeText={setDescription}
@@ -212,7 +213,6 @@ const styles = StyleSheet.create({
   },
   handle: { width: 42, height: 4, borderRadius: 2, backgroundColor: '#CBD2CE', alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  eyebrow: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   title: { color: colors.textPrimary, fontSize: 23, fontWeight: '900', marginTop: 4 },
   closeButton: {
     width: 38,

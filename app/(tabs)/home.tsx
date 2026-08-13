@@ -3,12 +3,11 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProgressBar } from '@/components/ui';
+import { avatarColors, colors, layout, radius, spacing, typography } from '@/constants/theme';
 import { questions } from '@/constants/questions';
 import { useAppState } from '@/lib/appState';
 import { getJourneyStatus, JourneyStatus } from '@/services/onboarding/journeyStatus';
 import { Team } from '@/types/domain';
-
-const avatarColors = ['#EEA29B', '#F0C58B', '#ECA9A5', '#B7DCCC', '#BFC9EC'];
 
 export default function HomeScreen() {
   const { answers, compatibility, getUserTeams, profile, result, user } = useAppState();
@@ -62,9 +61,15 @@ export default function HomeScreen() {
         <JourneyCard status={journey} onPress={journeyActions[journey.stepId]} />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your Teams</Text>
+          <Text style={styles.sectionTitle}>Your teams</Text>
           {teams.length ? (
-            <Pressable onPress={goToTeams} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View all your teams"
+              onPress={goToTeams}
+              hitSlop={10}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
               <Text style={styles.viewAll}>View all</Text>
             </Pressable>
           ) : null}
@@ -75,7 +80,7 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.emptyTeamsCard}>
             <View style={styles.emptyTeamsIcon}>
-              <Ionicons name="people-outline" size={26} color="#087453" />
+              <Ionicons name="people-outline" size={26} color={colors.accentDark} />
             </View>
             <Text style={styles.emptyTeamsTitle}>No teams yet</Text>
             <Text style={styles.emptyTeamsBody}>
@@ -95,7 +100,7 @@ export default function HomeScreen() {
             <Text style={styles.startDescription}>Create a team and invite{`\n`}your peers to collaborate.</Text>
           </View>
           <View style={styles.addButton}>
-            <Ionicons name="add" size={31} color="#FFFFFF" />
+            <Ionicons name="add" size={31} color={colors.surface} />
           </View>
         </Pressable>
       </ScrollView>
@@ -118,7 +123,7 @@ function JourneyCard({ status, onPress }: { status: JourneyStatus; onPress: () =
           <Ionicons
             name={complete ? 'checkmark-circle' : 'flag-outline'}
             size={20}
-            color={complete ? '#FFFFFF' : '#087453'}
+            color={complete ? colors.surface : colors.accentDark}
           />
         </View>
         <View style={styles.journeyCopy}>
@@ -130,13 +135,17 @@ function JourneyCard({ status, onPress }: { status: JourneyStatus; onPress: () =
         </Text>
       </View>
 
-      <ProgressBar value={status.completedCount} max={status.totalCount} />
+      <ProgressBar
+        value={status.completedCount}
+        max={status.totalCount}
+        label={`Setup progress, ${status.completedCount} of ${status.totalCount} steps done`}
+      />
       <Text style={styles.journeyBody}>{status.description}</Text>
 
       {status.actionLabel ? (
         <View style={styles.journeyAction}>
           <Text style={styles.journeyActionText}>{status.actionLabel}</Text>
-          <Ionicons name="arrow-forward" size={15} color="#087453" />
+          <Ionicons name="arrow-forward" size={15} color={colors.accentDark} />
         </View>
       ) : null}
     </Pressable>
@@ -155,7 +164,7 @@ function TeamSummaryCard({ team, onPress }: { team: Team; onPress: () => void })
       style={({ pressed }) => [styles.teamCard, pressed && styles.cardPressed]}
     >
       <View style={styles.teamBadge}>
-        <Ionicons name="people" size={25} color="#087453" />
+        <Ionicons name="people" size={25} color={colors.accentDark} />
       </View>
       <View style={styles.teamDetails}>
         <Text numberOfLines={1} style={styles.teamName}>{team.name}</Text>
@@ -178,7 +187,7 @@ function TeamSummaryCard({ team, onPress }: { team: Team; onPress: () => void })
           </Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={19} color="#A6AAA7" />
+      <Ionicons name="chevron-forward" size={19} color={colors.iconMuted} />
     </Pressable>
   );
 }
@@ -192,7 +201,7 @@ function PlantIllustration() {
       <View style={styles.stemRight} />
       <Ionicons name="leaf" size={31} color="#0D8B61" style={styles.leafTop} />
       <Ionicons name="leaf" size={32} color="#16A273" style={styles.leafLeft} />
-      <Ionicons name="leaf" size={34} color="#087453" style={styles.leafRight} />
+      <Ionicons name="leaf" size={34} color={colors.accentDark} style={styles.leafRight} />
       <View style={styles.soil} />
       <View style={styles.pot} />
     </View>
@@ -202,16 +211,16 @@ function PlantIllustration() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FBFCFA'
+    backgroundColor: colors.background
   },
   content: {
     flexGrow: 1,
     width: '100%',
-    maxWidth: 480,
+    maxWidth: layout.maxWidth,
     alignSelf: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 36
+    paddingHorizontal: layout.gutter,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl
   },
   topBar: {
     flexDirection: 'row',
@@ -219,68 +228,67 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   pageTitle: {
-    color: '#161B18',
-    fontSize: 25,
+    color: colors.textPrimary,
+    fontSize: typography.pageTitle,
     fontWeight: '800',
-    letterSpacing: -0.5
+    letterSpacing: -0.6
   },
   hero: {
     minHeight: 126,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 18,
-    paddingHorizontal: 1
+    paddingTop: 18
   },
   welcomeCopy: {
     flex: 1,
-    paddingRight: 10
+    paddingRight: spacing.md
   },
   eyebrow: {
-    color: '#343936',
-    fontSize: 16,
+    color: colors.textBody,
+    fontSize: typography.body,
     fontWeight: '500',
     marginBottom: 2
   },
   brandName: {
-    color: '#111513',
-    fontSize: 31,
+    color: colors.textPrimary,
+    fontSize: typography.display,
     lineHeight: 38,
     fontWeight: '900',
     letterSpacing: -1.2
   },
   brandAccent: {
-    color: '#0A815B'
+    color: colors.accent
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E8E5',
-    marginHorizontal: -20,
+    backgroundColor: colors.border,
+    marginHorizontal: -layout.gutter,
     marginBottom: 17
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 13
+    marginBottom: spacing.md
   },
   sectionTitle: {
-    color: '#242A26',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '800'
   },
   viewAll: {
-    color: '#087453',
-    fontSize: 14,
+    color: colors.accentDark,
+    fontSize: typography.small,
     fontWeight: '600'
   },
   journeyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 13,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: '#E1E9E4',
-    padding: 16,
-    marginBottom: 20,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     gap: 11
   },
   journeyHeader: {
@@ -293,36 +301,36 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DDF2E9',
+    backgroundColor: colors.accentSoft,
     marginRight: 11
   },
   journeyIconComplete: {
-    backgroundColor: '#15906A'
+    backgroundColor: colors.accent
   },
   journeyCopy: {
     flex: 1,
-    paddingRight: 8
+    paddingRight: spacing.sm
   },
   journeyEyebrow: {
-    color: '#15906A',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1
+    color: colors.accentDark,
+    fontSize: typography.micro,
+    fontWeight: '800',
+    letterSpacing: 0.9
   },
   journeyTitle: {
-    color: '#171C19',
-    fontSize: 16,
+    color: colors.textPrimary,
+    fontSize: typography.body,
     fontWeight: '800',
     marginTop: 3
   },
   journeyProgress: {
-    color: '#5A635E',
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: typography.caption,
     fontWeight: '800'
   },
   journeyBody: {
-    color: '#5A635E',
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.label,
     lineHeight: 19
   },
   journeyAction: {
@@ -331,16 +339,16 @@ const styles = StyleSheet.create({
     gap: 6
   },
   journeyActionText: {
-    color: '#087453',
-    fontSize: 13,
+    color: colors.accentDark,
+    fontSize: typography.label,
     fontWeight: '800'
   },
   emptyTeamsCard: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 13,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: '#E1E9E4',
+    borderColor: colors.border,
     paddingHorizontal: 22,
     paddingVertical: 26
   },
@@ -350,17 +358,17 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DDF2E9',
-    marginBottom: 12
+    backgroundColor: colors.accentSoft,
+    marginBottom: spacing.md
   },
   emptyTeamsTitle: {
-    color: '#242A26',
-    fontSize: 17,
+    color: colors.textPrimary,
+    fontSize: typography.h4,
     fontWeight: '800'
   },
   emptyTeamsBody: {
-    color: '#555B57',
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.label,
     lineHeight: 20,
     textAlign: 'center',
     marginTop: 6
@@ -369,8 +377,8 @@ const styles = StyleSheet.create({
     minHeight: 91,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 13,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     marginBottom: 10,
     paddingHorizontal: 14,
     paddingVertical: 15,
@@ -386,16 +394,16 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DDF2E9',
-    marginRight: 13
+    backgroundColor: colors.accentSoft,
+    marginRight: spacing.md
   },
   teamDetails: {
     flex: 1,
     gap: 7
   },
   teamName: {
-    color: '#246B56',
-    fontSize: 17,
+    color: colors.textPrimary,
+    fontSize: typography.h4,
     fontWeight: '800'
   },
   memberRow: {
@@ -412,18 +420,18 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center'
   },
   avatarText: {
     color: '#17392F',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '900'
   },
   memberCount: {
-    color: '#555C58',
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.label,
     fontWeight: '500'
   },
   startCard: {
@@ -431,8 +439,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 13,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     marginTop: 17,
     paddingHorizontal: 15,
     paddingVertical: 17,
@@ -444,28 +452,28 @@ const styles = StyleSheet.create({
   },
   startCopy: {
     flex: 1,
-    paddingRight: 12
+    paddingRight: spacing.md
   },
   startTitle: {
-    color: '#2A302C',
-    fontSize: 17,
+    color: colors.textPrimary,
+    fontSize: typography.h4,
     fontWeight: '800',
     marginBottom: 5
   },
   startDescription: {
-    color: '#555B57',
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: typography.small,
     fontWeight: '500',
     lineHeight: 20
   },
   addButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#11895F',
-    shadowColor: '#087453',
+    backgroundColor: colors.accentDark,
+    shadowColor: colors.accentDark,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
@@ -490,7 +498,7 @@ const styles = StyleSheet.create({
     top: 4,
     left: 8,
     borderRadius: 40,
-    backgroundColor: '#EDF7F1'
+    backgroundColor: colors.glow
   },
   stemMain: {
     position: 'absolute',
@@ -548,7 +556,7 @@ const styles = StyleSheet.create({
     height: 10,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: '#087453'
+    backgroundColor: colors.accentDark
   },
   pot: {
     position: 'absolute',

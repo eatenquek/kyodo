@@ -17,5 +17,9 @@ export function describeCoachError(error: unknown): string {
   if (lower.includes('failed to fetch') || lower.includes('network') || lower.includes('fetcherror')) {
     return "Kyodo couldn't reach the server. Check your connection and try again.";
   }
-  return 'Kyodo is having trouble right now. Please try again in a moment.';
+  // the upstream reason is worth showing, an unexplained "try again" strands
+  // the user on a failure that retrying will never clear
+  const generic = 'Kyodo is having trouble right now. Please try again in a moment.';
+
+  return message ? `${generic} (${message})` : generic;
 }

@@ -18,6 +18,24 @@ export type TeamCoachAdvice = {
   cached?: boolean;
 };
 
+// functions.invoke reports a non-2xx as "Edge Function returned a non-2xx status
+// code" and leaves the real reason in the unread response body, so read it back
+async function readFunctionError(error: unknown) {
+  const fallback = error instanceof Error ? error.message : 'AI coach request failed.';
+  const response = (error as { context?: unknown })?.context;
+
+  if (!(response instanceof Response)) return fallback;
+
+  try {
+    const body = await response.clone().json();
+    if (typeof body?.error === 'string' && body.error) return body.error;
+  } catch {
+    // body was empty or not json, fall through to the generic message
+  }
+
+  return fallback;
+}
+
 export async function generateTeamCoachAdvice({
   team,
   compatibility,
@@ -39,7 +57,7 @@ export async function generateTeamCoachAdvice({
     body: buildTeamCoachPayload({ team, compatibility, formation, targetGroupSize, refresh })
   });
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(await readFunctionError(error));
   if (!data) throw new Error('No AI coach advice was returned.');
 
   return data;

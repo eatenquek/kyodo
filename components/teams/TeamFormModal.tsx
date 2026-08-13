@@ -123,17 +123,16 @@ export function TeamFormModal({
   return (
     <Modal animationType="slide" transparent visible={Boolean(mode)} onRequestClose={close} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalRoot}>
-        <Pressable accessibilityLabel="Close team form" onPress={close} style={styles.modalBackdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close team form" onPress={close} style={styles.modalBackdrop} />
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.modalEyebrow}>{editing ? 'EDIT TEAM' : creating ? 'NEW TEAM' : 'TEAM INVITE'}</Text>
               <Text style={styles.modalTitle}>
                 {editing ? 'Edit this team' : creating ? 'Create a team' : 'Join with a code'}
               </Text>
             </View>
-            <Pressable accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
               <Ionicons name="close" size={23} color={colors.textPrimary} />
             </Pressable>
           </View>
@@ -143,18 +142,26 @@ export function TeamFormModal({
               <AppTextInput
                 label="Team name"
                 placeholder="e.g. Project Gemini"
+                maxLength={60}
                 value={teamName}
                 onChangeText={(value) => {
                   setTeamName(value);
                   setError('');
                 }}
               />
-              <AppTextInput label="Project name" placeholder="Optional" value={projectName} onChangeText={setProjectName} />
+              <AppTextInput
+                label="Project name"
+                placeholder="Optional"
+                maxLength={60}
+                value={projectName}
+                onChangeText={setProjectName}
+              />
               <AppTextInput
                 label="Description"
                 placeholder="What is your team working on?"
                 value={description}
                 onChangeText={setDescription}
+                maxLength={280}
                 multiline
               />
             </View>
@@ -223,12 +230,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
-  },
-  modalEyebrow: {
-    color: '#15906A',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2
   },
   modalTitle: {
     color: '#171C19',

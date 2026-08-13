@@ -24,7 +24,7 @@ export function LeaveTeamModal({
       title="Leave this team?"
       body={
         <>
-          You’ll need the <Text style={confirmModalStyles.code}>{team?.joinCode}</Text> code to join{' '}
+          You'll need the <Text style={confirmModalStyles.code}>{team?.joinCode}</Text> code to join{' '}
           {team?.name || 'this team'} again.
         </>
       }

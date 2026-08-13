@@ -6,7 +6,7 @@ import { AppButton, DimensionBar, PageHeader, Screen } from '@/components/ui';
 import { ProfileFormModal } from '@/components/profile/ProfileFormModal';
 import { Avatar } from '@/components/Avatar';
 import { dimensionDescriptions, dimensionLabels, questions } from '@/constants/questions';
-import { colors } from '@/constants/theme';
+import { colors, typography } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 import { buildWorkstyleProfile } from '@/services/scoring/workstyleProfile';
 import { Dimension, WorkstyleScores } from '@/types/domain';
@@ -38,6 +38,7 @@ export default function ProfileScreen() {
           title="Profile"
           action={
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Edit profile"
               hitSlop={10}
               onPress={() => setEditing(true)}
@@ -72,7 +73,7 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityLabel="Edit your profile details"
             onPress={() => setEditing(true)}
-            hitSlop={8}
+            style={({ pressed }) => [styles.editLink, pressed && styles.pressed]}
           >
             <Text style={styles.editText}>Edit</Text>
           </Pressable>
@@ -116,7 +117,6 @@ export default function ProfileScreen() {
                   <Ionicons name="sparkles" size={21} color={colors.accentDark} />
                 </View>
                 <View style={styles.resultCopy}>
-                  <Text style={styles.resultEyebrow}>YOUR CURRENT WORK-STYLE SNAPSHOT</Text>
                   <Text style={styles.tendencyLabel}>Primary tendency</Text>
                   <Text style={styles.resultTitle}>{workstyle.primary.label}</Text>
                 </View>
@@ -124,7 +124,7 @@ export default function ProfileScreen() {
               <Text style={styles.resultSummary}>{workstyle.primary.description}</Text>
 
               <View style={styles.secondaryTendency}>
-                <Text style={styles.secondaryEyebrow}>SECONDARY TENDENCY</Text>
+                <Text style={styles.secondaryEyebrow}>Secondary tendency</Text>
                 <Text style={styles.secondaryTitle}>{workstyle.secondary.label}</Text>
                 <Text style={styles.secondaryBody}>{workstyle.secondary.description}</Text>
               </View>
@@ -257,9 +257,9 @@ function InsightListCard({
 
 const styles = StyleSheet.create({
   editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.accentSoft
@@ -287,10 +287,18 @@ const styles = StyleSheet.create({
     marginTop: 9
   },
   statusPillComplete: { backgroundColor: '#FFFFFF' },
-  statusText: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  statusText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   statusTextComplete: { color: colors.accentDark },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 },
   sectionTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '800' },
+  // the pressable carries the 44pt target. hitSlop does not apply on web
+  editLink: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingLeft: 12
+  },
   editText: { color: colors.accentDark, fontSize: 13, fontWeight: '700' },
   infoCard: {
     backgroundColor: colors.surface,
@@ -310,7 +318,7 @@ const styles = StyleSheet.create({
     marginRight: 11
   },
   infoCopy: { flex: 1 },
-  infoLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  infoLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   infoValue: { color: colors.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 3 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 13 },
   bioRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 8 },
@@ -339,8 +347,7 @@ const styles = StyleSheet.create({
     marginRight: 11
   },
   resultCopy: { flex: 1 },
-  resultEyebrow: { color: colors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-  tendencyLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '700', marginTop: 5 },
+  tendencyLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: 5 },
   resultTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '900', marginTop: 2 },
   resultSummary: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 14 },
   secondaryTendency: {
@@ -349,10 +356,10 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 16
   },
-  secondaryEyebrow: { color: colors.accentDark, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  secondaryEyebrow: { color: colors.textSecondary, fontSize: typography.label, fontWeight: '700' },
   secondaryTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '900', marginTop: 4 },
   secondaryBody: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  resultDisclaimer: { color: colors.textSecondary, fontSize: 10, lineHeight: 16, fontStyle: 'italic', marginTop: 14 },
+  resultDisclaimer: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontStyle: 'italic', marginTop: 14 },
   insightCard: {
     backgroundColor: colors.surface,
     borderRadius: 15,

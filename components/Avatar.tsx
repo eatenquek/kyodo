@@ -17,11 +17,21 @@ export function Avatar({
   const radius = size / 2;
 
   if (uri) {
-    return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius }} />;
+    return (
+      <Image
+        accessibilityRole="image"
+        accessibilityLabel={name ? `${name}'s profile picture` : 'Profile picture'}
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: radius }}
+      />
+    );
   }
 
   return (
-    <View style={[styles.fallback, { width: size, height: size, borderRadius: radius, backgroundColor: color }]}>
+    <View
+      accessibilityLabel={name ? `${name}, no profile picture` : 'No profile picture'}
+      style={[styles.fallback, { width: size, height: size, borderRadius: radius, backgroundColor: color }]}
+    >
       <Text style={[styles.initial, { fontSize: size * 0.4, color: textColor }]}>
         {(name || '?').slice(0, 1).toUpperCase()}
       </Text>

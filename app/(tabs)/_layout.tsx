@@ -2,6 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { colors } from '@/constants/theme';
 
+const tabs = [
+  { name: 'home', title: 'Home', icon: 'home-outline' },
+  { name: 'teams', title: 'Teams', icon: 'people-outline' },
+  { name: 'cohort', title: 'Cohort', icon: 'school-outline' },
+  { name: 'profile', title: 'Profile', icon: 'person-outline' }
+] as const;
+
 export default function TabsLayout() {
   return (
     <Tabs
@@ -12,10 +19,17 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border }
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color }) => <Ionicons name="home-outline" color={color} size={22} /> }} />
-      <Tabs.Screen name="teams" options={{ title: 'Teams', tabBarIcon: ({ color }) => <Ionicons name="people-outline" color={color} size={22} /> }} />
-      <Tabs.Screen name="cohort" options={{ title: 'Cohort', tabBarIcon: ({ color }) => <Ionicons name="school-outline" color={color} size={22} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <Ionicons name="person-outline" color={color} size={22} /> }} />
+      {tabs.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarAccessibilityLabel: tab.title,
+            tabBarIcon: ({ color }) => <Ionicons name={tab.icon} color={color} size={22} />
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

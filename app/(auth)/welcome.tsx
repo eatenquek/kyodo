@@ -9,8 +9,8 @@ export default function WelcomeScreen() {
         <BrandHeader />
       </View>
       <View style={styles.actions}>
-        <AppButton title="Get Started" onPress={() => router.push('/(auth)/register')} />
-        <AppButton title="Sign In" variant="tertiary" onPress={() => router.push('/(auth)/login')} />
+        <AppButton title="Get started" onPress={() => router.push('/(auth)/register')} />
+        <AppButton title="Sign in" variant="tertiary" onPress={() => router.push('/(auth)/login')} />
       </View>
     </Screen>
   );

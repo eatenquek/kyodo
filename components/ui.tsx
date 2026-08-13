@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PropsWithChildren, ReactNode } from 'react';
+import { forwardRef, PropsWithChildren, ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,7 @@ import {
   ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors, layout, radius, spacing, typography } from '@/constants/theme';
 
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
@@ -51,6 +51,9 @@ export function AppButton({
   return (
     <Pressable
       accessibilityRole="button"
+      // reading the name off the child Text doesn't hold up across platforms
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: Boolean(disabled || loading), busy: Boolean(loading) }}
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
@@ -60,25 +63,58 @@ export function AppButton({
         pressed && styles.pressed
       ]}
     >
-      {loading ? <ActivityIndicator color={variant === 'primary' ? colors.surface : colors.accentDark} /> : null}
-      <Text style={[styles.buttonText, styles[`${variant}ButtonText`]]}>{title}</Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={variant === 'primary' ? colors.surface : colors.accentDark} />
+      ) : null}
+      <Text numberOfLines={1} style={[styles.buttonText, styles[`${variant}ButtonText`]]}>{title}</Text>
     </Pressable>
   );
 }
 
-export function AppTextInput({ label, error, ...props }: TextInputProps & { label: string; error?: string }) {
+export const AppTextInput = forwardRef<
+  TextInput,
+  TextInputProps & { label: string; error?: string; hint?: string }
+>(function AppTextInput({ label, error, hint, secureTextEntry, ...props }, ref) {
+  const [revealed, setRevealed] = useState(false);
+  const secure = Boolean(secureTextEntry);
+
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor="#9AA39E"
-        style={[styles.input, Boolean(error) && styles.inputError]}
-        {...props}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <View>
+        <TextInput
+          ref={ref}
+          accessibilityLabel={label}
+          placeholderTextColor={colors.textMuted}
+          secureTextEntry={secure && !revealed}
+          style={[
+            styles.input,
+            Boolean(props.multiline) && styles.inputMultiline,
+            secure && styles.inputWithAction,
+            Boolean(error) && styles.inputError
+          ]}
+          {...props}
+        />
+        {secure ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+            hitSlop={8}
+            onPress={() => setRevealed((current) => !current)}
+            style={({ pressed }) => [styles.inputAction, pressed && styles.pressed]}
+          >
+            <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
+      </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>
+      ) : hint ? (
+        <Text style={styles.hint}>{hint}</Text>
+      ) : null}
     </View>
   );
-}
+});
 
 export function Card({ children, muted }: PropsWithChildren<{ muted?: boolean }>) {
   return <View style={[styles.card, muted && styles.mutedCard]}>{children}</View>;
@@ -105,10 +141,18 @@ export function PageHeader({ title, action }: { title: string; action?: ReactNod
   );
 }
 
-export function ProgressBar({ value, max }: { value: number; max: number }) {
+export function ProgressBar({ value, max, label }: { value: number; max: number; label?: string }) {
+  const safeMax = max > 0 ? max : 1;
+  const percent = Math.min(100, Math.max(0, (value / safeMax) * 100));
+
   return (
-    <View style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${Math.max(4, (value / max) * 100)}%` }]} />
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityValue={{ min: 0, max: safeMax, now: value }}
+      style={styles.progressTrack}
+    >
+      <View style={[styles.progressFill, { width: `${Math.max(4, percent)}%` }]} />
     </View>
   );
 }
@@ -120,7 +164,7 @@ export function DimensionBar({ label, score, description }: { label: string; sco
         <Text style={styles.dimensionLabel}>{label}</Text>
         <Text style={styles.scoreText}>{score}</Text>
       </View>
-      <ProgressBar value={score} max={100} />
+      <ProgressBar value={score} max={100} label={`${label} score`} />
       {description ? <Text style={styles.caption}>{description}</Text> : null}
     </View>
   );
@@ -197,7 +241,7 @@ export const styles = StyleSheet.create({
     borderRadius: 105,
     top: -110,
     right: -115,
-    backgroundColor: '#F0F8F3'
+    backgroundColor: colors.glow
   },
   scrollContent: {
     flexGrow: 1
@@ -205,11 +249,11 @@ export const styles = StyleSheet.create({
   screenInner: {
     flex: 1,
     width: '100%',
-    maxWidth: 480,
+    maxWidth: layout.maxWidth,
     alignSelf: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: layout.gutter,
     paddingTop: 18,
-    paddingBottom: 32,
+    paddingBottom: spacing.xxl,
     gap: spacing.lg
   },
   pageHeader: {
@@ -221,7 +265,7 @@ export const styles = StyleSheet.create({
   },
   pageHeaderTitle: {
     color: colors.textPrimary,
-    fontSize: 26,
+    fontSize: typography.pageTitle,
     fontWeight: '800',
     letterSpacing: -0.6
   },
@@ -235,7 +279,7 @@ export const styles = StyleSheet.create({
   },
   h2: {
     color: colors.textPrimary,
-    fontSize: 19,
+    fontSize: typography.h3,
     fontWeight: '800',
     lineHeight: 25
   },
@@ -276,12 +320,37 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 1
   },
+  inputWithAction: {
+    paddingRight: 48
+  },
+  inputAction: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: 46,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  inputMultiline: {
+    minHeight: 92,
+    paddingTop: 14,
+    paddingBottom: 14,
+    textAlignVertical: 'top'
+  },
   inputError: {
     borderColor: colors.error
   },
   error: {
     color: colors.error,
     fontSize: typography.caption,
+    lineHeight: 17,
+    marginLeft: 2
+  },
+  hint: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+    lineHeight: 17,
     marginLeft: 2
   },
   button: {
@@ -291,10 +360,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingHorizontal: spacing.xl
+    // 24 wrapped "Join with code" onto a second line in a split row
+    paddingHorizontal: spacing.lg
   },
   primaryButton: {
-    backgroundColor: colors.accent,
+    // accent is too light behind white label text
+    backgroundColor: colors.accentDark,
     shadowColor: colors.accentDark,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.18,
@@ -307,7 +378,7 @@ export const styles = StyleSheet.create({
     borderColor: colors.accent
   },
   tertiaryButton: {
-    minHeight: 42,
+    minHeight: 44,
     backgroundColor: 'transparent'
   },
   buttonText: {
@@ -334,7 +405,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: '#EEF2EF',
+    borderColor: colors.borderSubtle,
     padding: 18,
     gap: spacing.md,
     shadowColor: '#193C30',
@@ -344,7 +415,10 @@ export const styles = StyleSheet.create({
     elevation: 2
   },
   mutedCard: {
-    backgroundColor: colors.surface
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0
   },
   progressTrack: {
     height: 8,
@@ -408,8 +482,8 @@ export const styles = StyleSheet.create({
     color: colors.accent
   },
   brandTagline: {
-    color: '#313834',
-    fontSize: 16,
+    color: colors.textBody,
+    fontSize: typography.body,
     fontWeight: '500',
     lineHeight: 23,
     textAlign: 'center',

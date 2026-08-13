@@ -25,12 +25,12 @@ export function SchoolPicker({
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root}>
-        <Pressable accessibilityLabel="Close school picker" onPress={onClose} style={styles.backdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close school picker" onPress={onClose} style={styles.backdrop} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>Choose your school</Text>
-            <Pressable accessibilityLabel="Close" hitSlop={10} onPress={onClose} style={styles.closeButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={23} color={colors.textPrimary} />
             </Pressable>
           </View>

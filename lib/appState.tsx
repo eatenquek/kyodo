@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { StartupError } from '@/components/StartupError';
 import { questions } from '@/constants/questions';
 import { calculateTeamCompatibility } from '@/services/scoring/compatibilityScoring';
 import { scoreQuestionnaire } from '@/services/scoring/questionnaireScoring';
@@ -201,39 +202,68 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<State>(initialState);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [startupError, setStartupError] = useState('');
+  const [startupAttempt, setStartupAttempt] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function hydrate() {
       if (backendEnabled && supabase) {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw new Error(error.message);
         const sessionUser = data.session?.user;
-        if (sessionUser?.email) {
-          const snapshot = await loadBackendSnapshot(sessionUser.id, sessionUser.email);
-          setState((current) => ({
-            ...current,
-            user: { id: sessionUser.id, email: sessionUser.email! },
-            profile: snapshot.profile,
-            answers: snapshot.answers,
-            result: snapshot.result,
-            teams: snapshot.teams,
-            activeTeamId: snapshot.activeTeamId,
-            compatibility: snapshot.compatibility
-          }));
-        }
-        setHydrated(true);
+        if (!sessionUser?.email || cancelled) return;
+
+        const snapshot = await loadBackendSnapshot(sessionUser.id, sessionUser.email);
+        if (cancelled) return;
+        setState((current) => ({
+          ...current,
+          user: { id: sessionUser.id, email: sessionUser.email! },
+          profile: snapshot.profile,
+          answers: snapshot.answers,
+          result: snapshot.result,
+          teams: snapshot.teams,
+          activeTeamId: snapshot.activeTeamId,
+          compatibility: snapshot.compatibility
+        }));
         return;
       }
 
       const value = await AsyncStorage.getItem(storageKey);
-      if (value) setState(withoutLegacyFixtures(JSON.parse(value)));
-      setHydrated(true);
+      if (!value || cancelled) return;
+
+      try {
+        const restored = withoutLegacyFixtures(JSON.parse(value));
+        if (!cancelled) setState(restored);
+      } catch {
+        // nothing left to restore, and no retry will ever parse it
+        await AsyncStorage.removeItem(storageKey);
+      }
     }
 
-    hydrate();
-  }, []);
+    setStartupError('');
+    hydrate()
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setStartupError(err instanceof Error ? err.message : 'KyodoAI could not load your account.');
+      })
+      .finally(() => {
+        if (!cancelled) setHydrated(true);
+      });
 
+    return () => {
+      cancelled = true;
+    };
+  }, [startupAttempt]);
+
+  // only local mode reads this back on launch. in backend mode a copy here
+  // would just leave one account's teams on a shared device
   useEffect(() => {
-    if (hydrated) AsyncStorage.setItem(storageKey, JSON.stringify(state));
+    if (!hydrated || backendEnabled) return;
+    AsyncStorage.setItem(storageKey, JSON.stringify(state)).catch(() => {
+      // a failed write only costs the restore, not the session
+    });
   }, [hydrated, state]);
 
   const value = useMemo<AppContextValue>(() => {
@@ -325,8 +355,20 @@ export function AppProvider({ children }: PropsWithChildren) {
         return { ok: true, profileComplete: false, resultComplete: false };
       },
       async signOut() {
-        if (backendEnabled && supabase) await supabase.auth.signOut();
-        setState((current) => ({ ...current, user: null }));
+        try {
+          if (backendEnabled && supabase) await supabase.auth.signOut();
+        } catch {
+          // dropped locally either way, so offline doesn't strand you signed in
+        }
+
+        // backend data comes back on the next sign-in. local mode keeps its
+        // single slot, that copy of the profile is the only one there is
+        setState((current) =>
+          backendEnabled
+            ? { ...initialState, registeredEmails: current.registeredEmails }
+            : { ...current, user: null }
+        );
+        setCohorts([]);
         router.replace('/(auth)/welcome');
       },
       async saveProfile(profileInput) {
@@ -649,6 +691,9 @@ export function AppProvider({ children }: PropsWithChildren) {
   }, [hydrated, userId]);
 
   if (!hydrated) return null;
+  if (startupError) {
+    return <StartupError message={startupError} onRetry={() => setStartupAttempt((attempt) => attempt + 1)} />;
+  }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

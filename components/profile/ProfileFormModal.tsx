@@ -102,15 +102,14 @@ export function ProfileFormModal({
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={close} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalRoot}>
-        <Pressable accessibilityLabel="Close profile form" onPress={close} style={styles.backdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close profile form" onPress={close} style={styles.backdrop} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>YOUR DETAILS</Text>
               <Text style={styles.title}>{profile ? 'Edit profile' : 'Complete profile'}</Text>
             </View>
-            <Pressable accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={close} style={styles.closeButton}>
               <Ionicons name="close" size={23} color={colors.textPrimary} />
             </Pressable>
           </View>
@@ -142,6 +141,7 @@ export function ProfileFormModal({
 
             <AppTextInput
               label="Full name"
+              maxLength={60}
               placeholder="Your name"
               value={fullName}
               onChangeText={(value) => {
@@ -149,13 +149,25 @@ export function ProfileFormModal({
                 setError('');
               }}
             />
-            <AppTextInput label="University" placeholder="e.g. NUS" value={university} onChangeText={setUniversity} />
-            <AppTextInput label="Course" placeholder="e.g. Computer Science" value={course} onChangeText={setCourse} />
+            <AppTextInput
+              label="University"
+              placeholder="e.g. NUS"
+              maxLength={80}
+              value={university}
+              onChangeText={setUniversity}
+            />
+            <AppTextInput
+              label="Course"
+              placeholder="e.g. Computer Science"
+              maxLength={80}
+              value={course}
+              onChangeText={setCourse}
+            />
             <AppTextInput
               label="Year of study"
               placeholder="1-8"
               value={year}
-              onChangeText={(value) => setYear(value.replace(/[^0-9]/g, '').slice(0, 1))}
+              onChangeText={(value) => setYear(value.replace(/[^1-9]/g, '').slice(0, 1))}
               keyboardType="number-pad"
             />
 
@@ -167,6 +179,9 @@ export function ProfileFormModal({
                   return (
                     <Pressable
                       key={role}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selected }}
+                      accessibilityLabel={role}
                       onPress={() => setPreferredRole(role)}
                       style={({ pressed }) => [styles.roleChip, selected && styles.roleChipSelected, pressed && styles.pressed]}
                     >
@@ -243,7 +258,6 @@ const styles = StyleSheet.create({
   },
   handle: { width: 42, height: 4, borderRadius: 2, backgroundColor: '#CBD2CE', alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  eyebrow: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   title: { color: colors.textPrimary, fontSize: 23, fontWeight: '900', marginTop: 4 },
   closeButton: {
     width: 38,

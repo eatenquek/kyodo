@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppButton, ProgressBar, Screen } from '@/components/ui';
@@ -8,12 +8,17 @@ import { colors } from '@/constants/theme';
 import { useAppState } from '@/lib/appState';
 
 export default function QuestionnaireScreen() {
-  const { answers, completeQuestionnaire, saveAnswer } = useAppState();
+  const { answers, completeQuestionnaire, profile, saveAnswer } = useAppState();
   const firstUnanswered = questions.findIndex((question) => !answers[question.id]);
   const [questionIndex, setQuestionIndex] = useState(firstUnanswered >= 0 ? firstUnanswered : 0);
   const [savingAnswer, setSavingAnswer] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState('');
+
+  // answers are keyed to a profiles row by foreign key, so the profile step has
+  // to come first. the journey card already points here, this stops the route
+  // being reached directly before that
+  if (!profile) return <Redirect href="/(tabs)/profile" />;
 
   const question = questions[questionIndex];
   const selectedValue = answers[question.id]?.value;
@@ -71,6 +76,7 @@ export default function QuestionnaireScreen() {
     <Screen contentStyle={styles.content}>
       <View style={styles.header}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Exit questionnaire"
           hitSlop={10}
           onPress={() => router.replace('/(tabs)/profile')}
@@ -79,7 +85,6 @@ export default function QuestionnaireScreen() {
           <Ionicons name="close" size={23} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>WORK-STYLE QUESTIONNAIRE</Text>
           <Text style={styles.headerTitle}>How do you work in a team?</Text>
         </View>
       </View>
@@ -159,7 +164,6 @@ const styles = StyleSheet.create({
     marginRight: 12
   },
   headerCopy: { flex: 1 },
-  eyebrow: { color: colors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
   headerTitle: { color: colors.textPrimary, fontSize: 21, fontWeight: '900', marginTop: 3 },
   progressSection: { gap: 9 },
   progressCopy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 6
   },
-  dimensionText: { color: colors.accentDark, fontSize: 10, fontWeight: '800' },
+  dimensionText: { color: colors.accentDark, fontSize: 12, fontWeight: '800' },
   questionText: { color: colors.textPrimary, fontSize: 22, lineHeight: 30, fontWeight: '800', marginTop: 18 },
   helperText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 8 },
   options: { gap: 9, marginTop: 20 },
